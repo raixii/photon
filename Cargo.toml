@@ -6,7 +6,9 @@ edition = "2018"
 description = "Traces rays!"
 
 [dependencies]
-quick-xml = "0.15.0"
 minifb = "0.12"
 clap = "2.33.0"
 png = "0.15.0"
+sxd-xpath = "0.4.2"
+sxd-document = "0.3.2"
+vecmath = "1.0.0"

@@ -1,10 +1,13 @@
 #[macro_use]
 extern crate clap;
 
-use quick_xml::Reader;
-use quick_xml::events::Event;
 use minifb::{Window, WindowOptions};
-use std::{thread, time};
+use std::{thread, time, fs};
+use std::io::Read;
+
+mod collada;
+mod scene;
+mod math;
 
 fn main() {
     let matches = clap_app!(photon =>
@@ -16,26 +19,13 @@ fn main() {
         (@arg headless: -H --headless "Do not show the GUI")
     ).get_matches();
 
-    let mut reader = Reader::from_file("examples/cube.dae").unwrap();
-    reader.trim_text(true);
-    let mut buffer = vec![];
-    loop {
-        match reader.read_event(&mut buffer) {
-            Ok(Event::Start(start)) => {
-                print!("<{}", String::from_utf8_lossy(start.local_name()));
-                for attribute in start.attributes() {
-                    let attribute = attribute.unwrap();
-                    print!(" {}={}", String::from_utf8_lossy(attribute.key), attribute.unescape_and_decode_value(&mut reader).unwrap());
-                }
-                println!(">");
-            },
-            Ok(Event::Text(text)) => println!("{}", text.unescape_and_decode(&mut reader).unwrap()),
-            Ok(Event::End(end)) => println!("<{}>", String::from_utf8_lossy(end.local_name())),
-            Ok(Event::Eof) => break,
-            Ok(_) => {},
-            Err(e) => panic!("Error while reading XML {}", e),
-        }
-    }
+    let collada_xml = {
+        let mut infile = fs::File::open(matches.value_of("INPUT").unwrap()).unwrap();
+        let mut buffer = Vec::new();
+        infile.read_to_end(&mut buffer).unwrap();
+        String::from_utf8(buffer).unwrap()
+    };
+    collada::read(&collada_xml);
 
     let window_w = 1024;
     let window_h = 768;
