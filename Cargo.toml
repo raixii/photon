@@ -1,9 +1,12 @@
 [package]
 name = "photon"
 version = "0.1.0"
-authors = ["Michael"]
+authors = ["Michael", "Patrick"]
 edition = "2018"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+description = "Traces rays!"
 
 [dependencies]
+quick-xml = "0.15.0"
+minifb = "0.12"
+clap = "2.33.0"
+png = "0.15.0"
