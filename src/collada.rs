@@ -20,7 +20,26 @@ pub fn read(xml: &str) -> Scene {
     let camera_element = evaluate_xpath_element(Node::Element(visual_scene), "./c:node/c:instance_camera/..", &context);
     let camera_transform = get_transform_of_node(camera_element, &context);
 
-    println!("{:?}", camera_transform);
+    // #TODO: Finish camera
+    
+    let point_light_nodes = evaluate_xpath_element_all(Node::Element(visual_scene), "./c:node/c:instance_light/..", &context);
+
+    for light in point_light_nodes {
+        let light_transform = get_transform_of_node(light, &context);
+        println!("light-transform:\n{:?}", light_transform);
+    }
+
+    // TODO: finish lights
+
+
+    let object_nodes = evaluate_xpath_element_all(Node::Element(visual_scene), "./c:node/c:instance_geometry/..", &context);
+     for object in object_nodes {
+        let object_transform = get_transform_of_node(object, &context);
+        println!("object-transform:\n{:?}", object_transform);
+    }
+    // TODO: finish objects
+
+    println!("camera-transform:\n{:?}", camera_transform);
     unimplemented!()
 }
 
@@ -34,6 +53,19 @@ fn evaluate_xpath_attribute<'a>(node: Node<'a>, xpath: &str, context: &'a Contex
         }
     } else {
         panic!("XPath expression does not return a nodeset.")
+    }
+}
+
+fn evaluate_xpath_element_all<'a>(node: Node<'a>, xpath: &str, context: &'a Context) -> Vec<Element<'a>> {
+    let xpath = Factory::new().build(xpath).unwrap().unwrap();
+    if let Value::Nodeset(nodes) = xpath.evaluate(&context, node).unwrap() {
+        nodes.iter().map(|n| if let Node::Element(element) = n {
+            element
+        } else {
+            panic!("Node is not an element node")
+        }).collect()
+    } else {
+        panic!("XPath expression does not return a nodeset")
     }
 }
 
