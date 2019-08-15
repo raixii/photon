@@ -1,11 +1,18 @@
 use std::fmt::{Debug, Formatter};
 use std::ops::Mul;
 
-pub type Vec3 = vecmath::Vector3<f32>;
+#[derive(Copy, Clone, PartialEq)]
+pub struct Vec3(pub vecmath::Vector3<f32>);
+
+impl Debug for Vec3 {
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+        write!(f, "[{:5.2}, {:5.2}, {:5.2}]", self.0[0], self.0[1], self.0[2])
+    }
+}
 
 pub type Vec4 = vecmath::Vector4<f32>;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq)]
 pub struct Mat4(pub vecmath::Matrix4<f32>); // column major
 
 impl Debug for Mat4 {

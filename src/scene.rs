@@ -27,15 +27,15 @@ pub struct PointLight {
     c: f32,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct Triangle {
-    a: Vertex,
-    b: Vertex,
-    c: Vertex,   
+    pub a: Vertex,
+    pub b: Vertex,
+    pub c: Vertex,   
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct Vertex {
-    position: Vec3,
-    normal: Vec3,
+    pub position: Vec3,
+    pub normal: Vec3,
 }
