@@ -51,7 +51,7 @@ pub fn read(xml: &str) -> Scene {
         let count: usize = FromStr::from_str(evaluate_xpath_attribute(Node::Element(geometry_element), "./c:mesh/c:triangles/@count", &context)).unwrap();
         
         let indices: Vec<usize> = get_text(evaluate_xpath_element(Node::Element(geometry_element), "./c:mesh/c:triangles/c:p", &context)).split_whitespace().map(|s| FromStr::from_str(s).unwrap()).collect();
-        let modulo = indices.len() / count;
+        let modulo = indices.len() / (count * 3);
         let mut triangle = Triangle {
             a: Vertex { normal: Vec3([0.0; 3]), position: Vec3([0.0; 3]), },
             b: Vertex { normal: Vec3([0.0; 3]), position: Vec3([0.0; 3]), },
@@ -59,26 +59,27 @@ pub fn read(xml: &str) -> Scene {
         };
         for (i, &index) in indices.iter().enumerate() {
             let vertex_index = (i / modulo) % 3;
+            let offset = i % modulo;
+            if vertex_index == 0 && offset == 0 && i != 0 {
+                triangles.push(triangle);
+            }
+
             let vertex = match vertex_index {
                 0 => &mut triangle.a,
                 1 => &mut triangle.b,
                 2 => &mut triangle.c,
                 _ => unreachable!(),
             };
-            let offset = i % modulo;
             if offset == position_offset {
-                vertex.position = positions[index];
+                vertex.position = (object_transform * positions[index].xyz1()).xyz();
             } else if offset == normal_offset {
-                vertex.normal = normals[index];
-            }
-            if vertex_index == 2 {
-                triangles.push(triangle);
+                vertex.normal = (object_transform.inv().transpose() * normals[index].xyz0()).xyz().normalize();
             }
         }
-
-        println!("{:?}", triangles);
-        println!("object-transform:\n{:?}", object_transform);
+        triangles.push(triangle);
     }
+
+    println!("{:?}", triangles);
 
     unimplemented!()
 }

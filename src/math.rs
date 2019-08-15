@@ -10,7 +10,34 @@ impl Debug for Vec3 {
     }
 }
 
-pub type Vec4 = vecmath::Vector4<f32>;
+impl Vec3 {
+    pub fn xyz1(&self) -> Vec4 {
+        Vec4([self.0[0], self.0[1], self.0[2], 1.0])
+    }
+
+    pub fn xyz0(&self) -> Vec4 {
+        Vec4([self.0[0], self.0[1], self.0[2], 0.0])
+    }
+
+    pub fn normalize(&self) -> Vec3 {
+        Vec3(vecmath::vec3_normalized(self.0))
+    }
+}
+
+#[derive(Copy, Clone, PartialEq)]
+pub struct Vec4(vecmath::Vector4<f32>);
+
+impl Vec4 {
+    pub fn xyz(&self) -> Vec3 {
+        Vec3([self.0[0], self.0[1], self.0[2]])
+    }
+}
+
+impl Debug for Vec4 {
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+        write!(f, "[{:5.2}, {:5.2}, {:5.2}, {:5.2}]", self.0[0], self.0[1], self.0[2], self.0[3])
+    }
+}
 
 #[derive(Copy, Clone, PartialEq)]
 pub struct Mat4(pub vecmath::Matrix4<f32>); // column major
@@ -39,6 +66,16 @@ impl Mul<Vec4> for Mat4 {
     type Output = Vec4; 
 
     fn mul(self, rhs: Vec4) -> Vec4 {
-        vecmath::col_mat4_transform(self.0, rhs)
+        Vec4(vecmath::col_mat4_transform(self.0, rhs.0))
+    }
+}
+
+impl Mat4 {
+    pub fn inv(&self) -> Mat4 {
+        Mat4(vecmath::mat4_inv(self.0))
+    }
+
+    pub fn transpose(&self) -> Mat4 {
+        Mat4(vecmath::mat4_transposed(self.0))
     }
 }
