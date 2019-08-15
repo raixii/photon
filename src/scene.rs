@@ -11,10 +11,10 @@ pub struct Scene {
 pub struct Camera {
     pub position: Vec3,
     pub top_left_corner: Vec3,
-    pub pixel_delta_x: Vec3,
-    pub pixel_delta_y: Vec3,
-    pub width: usize,
-    pub height: usize,
+    pub plane_width: f32,
+    pub plane_height: f32,
+    pub right_vector: Vec3,
+    pub down_vector: Vec3,
 }
 
 #[derive(Debug)]

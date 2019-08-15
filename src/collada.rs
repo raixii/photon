@@ -3,15 +3,13 @@ use sxd_xpath::{Value, Factory, Context};
 use sxd_xpath::nodeset::Node;
 use sxd_document::dom::{Document, Element, ChildOfElement};
 use std::str::FromStr;
+use std::f32::consts::PI;
 use super::scene::{Scene, Triangle, Vertex, Camera, PointLight};
 use super::math::{Vec4, Vec3, Mat4};
 
 pub fn read(xml: &str) -> Scene {
     let mut context = Context::new();
     context.set_namespace("c", "http://www.collada.org/2005/11/COLLADASchema");
-
-    
-
     let package = parser::parse(xml).unwrap();
     let doc = package.as_document();
     let root = Node::Root(doc.root());
@@ -20,12 +18,37 @@ pub fn read(xml: &str) -> Scene {
     let visual_scene = get_by_url(&doc, scene_instance_url, &context);
 
     let camera_element = evaluate_xpath_element(Node::Element(visual_scene), "./c:node/c:instance_camera/..", &context);
-    let camera_transform = get_transform_of_node(camera_element, &context);
+    
+    let camera_url = evaluate_xpath_attribute(Node::Element(camera_element), "./c:instance_camera/@url", &context);
+    let camera_specs = get_by_url(&doc, camera_url, &context);
 
-    // #TODO: Finish camera
+    let camera_transform = get_transform_of_node(camera_element, &context);
+    let camera_position = (camera_transform * Vec4([0.0, 0.0, 0.0, 1.0])).xyz();
+    let camera_look = (camera_transform * Vec4([0.0, 0.0, -1.0, 0.0])).xyz().normalize();
+    let camera_up = (camera_transform * Vec4([0.0, 1.0, 0.0, 0.0])).xyz().normalize();
+    let camera_left = (camera_transform * Vec4([-1.0, 0.0, 0.0, 0.0])).xyz().normalize();
+    if camera_look.dot(&camera_up).abs() > 0.0001 || camera_look.dot(&camera_left).abs() > 0.0001 || camera_left.dot(&camera_up).abs() > 0.0001 {
+        panic!("Camera is transformed without keeping the angles.");
+    }
+
+    let aspect_ratio: f32 = FromStr::from_str(get_text(evaluate_xpath_element(Node::Element(camera_specs), "./c:optics/c:technique_common/c:perspective/c:aspect_ratio", &context))).unwrap();
+    let znear: f32 = FromStr::from_str(get_text(evaluate_xpath_element(Node::Element(camera_specs), "./c:optics/c:technique_common/c:perspective/c:znear", &context))).unwrap();
+    let fov_deg: f32 = FromStr::from_str(get_text(evaluate_xpath_element(Node::Element(camera_specs), "./c:optics/c:technique_common/c:perspective/c:xfov", &context))).unwrap();
+    let fov = fov_deg / 180.0 * PI;
+    let alpha = PI - fov / 2.0;
+    let image_plane_half_width = znear / (fov / 2.0).sin() * alpha.sin();
+    let image_plane_top_left = camera_position + znear * camera_look + image_plane_half_width * camera_left + (image_plane_half_width / aspect_ratio) * camera_up;
+    let camera = Camera {
+        position: camera_position,
+        top_left_corner: image_plane_top_left,
+        plane_width: image_plane_half_width * 2.0,
+        plane_height: image_plane_half_width / aspect_ratio * 2.0,
+        right_vector: -camera_left,
+        down_vector: -camera_up,
+    };
     
     let point_light_nodes = evaluate_xpath_element_all(Node::Element(visual_scene), "./c:node/c:instance_light/..", &context);
-    let mut lights: Vec<PointLight> = Vec::new();
+    let mut point_lights: Vec<PointLight> = Vec::new();
     for light in point_light_nodes {
         let light_node = {
             let light_url = evaluate_xpath_attribute(Node::Element(light), "./c:instance_light/@url", &context);
@@ -46,7 +69,7 @@ pub fn read(xml: &str) -> Scene {
         let b: f32 = FromStr::from_str(get_text(evaluate_xpath_element(Node::Element(light_node), "./c:technique_common/c:point/c:linear_attenuation", &context))).unwrap();
         let c: f32 = FromStr::from_str(get_text(evaluate_xpath_element(Node::Element(light_node), "./c:technique_common/c:point/c:constant_attenuation", &context))).unwrap();
 
-        lights.push(PointLight{position, color, a, b, c});
+        point_lights.push(PointLight{position, color, a, b, c});
     }
 
 
@@ -96,8 +119,8 @@ pub fn read(xml: &str) -> Scene {
         }
         triangles.push(triangle);
     }
-
-    unimplemented!()
+    
+    Scene { camera, triangles, point_lights }
 }
 
 fn evaluate_xpath_attribute<'a>(node: Node<'a>, xpath: &str, context: &'a Context) -> &'a str {
