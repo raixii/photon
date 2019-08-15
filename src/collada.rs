@@ -3,12 +3,14 @@ use sxd_xpath::{Value, Factory, Context};
 use sxd_xpath::nodeset::Node;
 use sxd_document::dom::{Document, Element, ChildOfElement};
 use std::str::FromStr;
-use super::scene::{Scene, Triangle, Vertex};
-use super::math::{Vec3, Mat4};
+use super::scene::{Scene, Triangle, Vertex, Camera, PointLight};
+use super::math::{Vec4, Vec3, Mat4};
 
 pub fn read(xml: &str) -> Scene {
     let mut context = Context::new();
     context.set_namespace("c", "http://www.collada.org/2005/11/COLLADASchema");
+
+    
 
     let package = parser::parse(xml).unwrap();
     let doc = package.as_document();
@@ -23,13 +25,29 @@ pub fn read(xml: &str) -> Scene {
     // #TODO: Finish camera
     
     let point_light_nodes = evaluate_xpath_element_all(Node::Element(visual_scene), "./c:node/c:instance_light/..", &context);
-
+    let mut lights: Vec<PointLight> = Vec::new();
     for light in point_light_nodes {
-        let light_transform = get_transform_of_node(light, &context);
-        println!("light-transform:\n{:?}", light_transform);
-    }
+        let light_node = {
+            let light_url = evaluate_xpath_attribute(Node::Element(light), "./c:instance_light/@url", &context);
+            get_by_url(&doc, light_url, &context)
+        };
+        let position = {
+            let light_transform = get_transform_of_node(light, &context);
+            (light_transform * Vec4([0.0, 0.0, 0.0, 1.0])).xyz()
+        };
+        
+        let color = {
+            let color = get_text(evaluate_xpath_element(Node::Element(light_node), "./c:technique_common/c:point/c:color", &context));
+            let rgb: Vec<f32>  = color.split_whitespace().map(|c| FromStr::from_str(c).unwrap()).collect();
+            Vec3([rgb[0], rgb[1], rgb[2]])
+        };
 
-    // TODO: finish lights
+        let a: f32 = FromStr::from_str(get_text(evaluate_xpath_element(Node::Element(light_node), "./c:technique_common/c:point/c:quadratic_attenuation", &context))).unwrap();
+        let b: f32 = FromStr::from_str(get_text(evaluate_xpath_element(Node::Element(light_node), "./c:technique_common/c:point/c:linear_attenuation", &context))).unwrap();
+        let c: f32 = FromStr::from_str(get_text(evaluate_xpath_element(Node::Element(light_node), "./c:technique_common/c:point/c:constant_attenuation", &context))).unwrap();
+
+        lights.push(PointLight{position, color, a, b, c});
+    }
 
 
     let mut triangles = Vec::new();
@@ -78,8 +96,6 @@ pub fn read(xml: &str) -> Scene {
         }
         triangles.push(triangle);
     }
-
-    println!("{:?}", triangles);
 
     unimplemented!()
 }

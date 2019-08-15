@@ -25,7 +25,7 @@ impl Vec3 {
 }
 
 #[derive(Copy, Clone, PartialEq)]
-pub struct Vec4(vecmath::Vector4<f32>);
+pub struct Vec4(pub vecmath::Vector4<f32>);
 
 impl Vec4 {
     pub fn xyz(&self) -> Vec3 {
