@@ -170,6 +170,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "num_cpus"
+version = "1.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "libc 0.2.61 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "orbclient"
 version = "0.3.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -189,6 +197,7 @@ version = "0.1.0"
 dependencies = [
  "clap 2.33.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "minifb 0.12.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "num_cpus 1.10.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "png 0.15.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "sxd-document 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "sxd-xpath 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -471,6 +480,7 @@ dependencies = [
 "checksum num-integer 0.1.41 (registry+https://github.com/rust-lang/crates.io-index)" = "b85e541ef8255f6cf42bbfe4ef361305c6c135d10919ecc26126c4e5ae94bc09"
 "checksum num-iter 0.1.39 (registry+https://github.com/rust-lang/crates.io-index)" = "76bd5272412d173d6bf9afdf98db8612bbabc9a7a830b7bfc9c188911716132e"
 "checksum num-traits 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)" = "6ba9a427cfca2be13aa6f6403b0b7e7368fe982bfa16fccc450ce74c46cd9b32"
+"checksum num_cpus 1.10.1 (registry+https://github.com/rust-lang/crates.io-index)" = "bcef43580c035376c0705c42792c294b66974abbfd2789b511784023f71f3273"
 "checksum orbclient 0.3.27 (registry+https://github.com/rust-lang/crates.io-index)" = "f8b18f57ab94fbd058e30aa57f712ec423c0bb7403f8493a6c58eef0c36d9402"
 "checksum peresil 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "f658886ed52e196e850cfbbfddab9eaa7f6d90dd0929e264c31e5cec07e09e57"
 "checksum piston-float 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "f900be47e312e126cc71d35548e8e31edd3901b92ab82d1c4c4757e6b5526564"

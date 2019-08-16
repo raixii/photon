@@ -44,6 +44,21 @@ impl Vec3 {
     pub fn len(self) -> f32 {
         vecmath::vec3_len(self.0)
     }
+
+    #[inline(always)]
+    pub fn x(self) -> f32 {
+        self.0[0]
+    }
+
+    #[inline(always)]
+    pub fn y(self) -> f32 {
+        self.0[1]
+    }
+
+    #[inline(always)]
+    pub fn z(self) -> f32 {
+        self.0[2]
+    }
 }
 
 impl Mul<Vec3> for f32 {
