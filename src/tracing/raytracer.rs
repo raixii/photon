@@ -1,5 +1,6 @@
 use crate::math::Vec3;
 use crate::scene::{Camera, Scene, Triangle};
+use std::f32::EPSILON;
 
 pub fn raytrace(scene: &Scene, x: f32, y: f32, width: f32, height: f32) -> Option<Vec3> {
     let ray = calc_ray(&scene.camera, x, y, width, height);
@@ -52,27 +53,41 @@ fn nearest_triangle(triangles: &[Triangle], camera_pos: Vec3, ray: Vec3) -> Opti
 
         // Get the barycentric coordinates:
         // https://en.wikipedia.org/wiki/Barycentric_coordinate_system#Conversion_between_barycentric_and_Cartesian_coordinates
-        let divisor = (triangle.b.position.y() - triangle.c.position.y())
-            * (triangle.a.position.x() - triangle.c.position.x())
-            + (triangle.c.position.x() - triangle.b.position.x())
-                * (triangle.a.position.y() - triangle.c.position.y());
-        let alpha = ((triangle.b.position.y() - triangle.c.position.y())
-            * (intersection.x() - triangle.c.position.x())
-            + (triangle.c.position.x() - triangle.b.position.x())
-                * (intersection.y() - triangle.c.position.y()))
-            / divisor;
-        let beta = ((triangle.c.position.y() - triangle.a.position.y())
-            * (intersection.x() - triangle.c.position.x())
-            + (triangle.a.position.x() - triangle.c.position.x())
-                * (intersection.y() - triangle.c.position.y()))
-            / divisor;
-        let gamma = 1.0 - alpha - beta;
+        // let divisor = (triangle.b.position.y() - triangle.c.position.y())
+        //     * (triangle.a.position.x() - triangle.c.position.x())
+        //     + (triangle.c.position.x() - triangle.b.position.x())
+        //         * (triangle.a.position.y() - triangle.c.position.y());
+        // let alpha = ((triangle.b.position.y() - triangle.c.position.y())
+        //     * (intersection.x() - triangle.c.position.x())
+        //     + (triangle.c.position.x() - triangle.b.position.x())
+        //         * (intersection.y() - triangle.c.position.y()))
+        //     / divisor;
+        // let beta = ((triangle.c.position.y() - triangle.a.position.y())
+        //     * (intersection.x() - triangle.c.position.x())
+        //     + (triangle.a.position.x() - triangle.c.position.x())
+        //         * (intersection.y() - triangle.c.position.y()))
+        //     / divisor;
+        // let gamma = 1.0 - alpha - beta;
+        let area_triangle = Vec3([a, b, c]).len();
+        let area_triangle_abi = (triangle.a.position - intersection)
+            .cross(triangle.b.position - intersection)
+            .len();
+        let area_triangle_aci = (triangle.a.position - intersection)
+            .cross(triangle.c.position - intersection)
+            .len();
+        let area_triangle_bci = (triangle.b.position - intersection)
+            .cross(triangle.c.position - intersection)
+            .len();
+        let gamma = area_triangle_abi / area_triangle;
+        let beta = area_triangle_aci / area_triangle;
+        let alpha = area_triangle_bci / area_triangle;
         if !(0.0 <= alpha
             && alpha <= 1.0
             && 0.0 <= beta
             && beta <= 1.0
             && 0.0 <= gamma
-            && gamma <= 1.0)
+            && gamma <= 1.0
+            && (alpha + beta + gamma - 1.0).abs() < EPSILON)
         {
             continue;
         }
