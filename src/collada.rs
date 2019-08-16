@@ -27,7 +27,7 @@ pub fn read(xml: &str) -> Scene {
     let camera_look = (camera_transform * Vec4([0.0, 0.0, -1.0, 0.0])).xyz().normalize();
     let camera_up = (camera_transform * Vec4([0.0, 1.0, 0.0, 0.0])).xyz().normalize();
     let camera_left = (camera_transform * Vec4([-1.0, 0.0, 0.0, 0.0])).xyz().normalize();
-    if camera_look.dot(&camera_up).abs() > 0.0001 || camera_look.dot(&camera_left).abs() > 0.0001 || camera_left.dot(&camera_up).abs() > 0.0001 {
+    if camera_look.dot(camera_up).abs() > 0.0001 || camera_look.dot(camera_left).abs() > 0.0001 || camera_left.dot(camera_up).abs() > 0.0001 {
         panic!("Camera is transformed without keeping the angles.");
     }
 

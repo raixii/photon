@@ -11,27 +11,33 @@ impl Debug for Vec3 {
 }
 
 impl Vec3 {
-    pub fn xyz1(&self) -> Vec4 {
+    #[inline(always)]
+    pub fn xyz1(self) -> Vec4 {
         Vec4([self.0[0], self.0[1], self.0[2], 1.0])
     }
 
-    pub fn xyz0(&self) -> Vec4 {
+    #[inline(always)]
+    pub fn xyz0(self) -> Vec4 {
         Vec4([self.0[0], self.0[1], self.0[2], 0.0])
     }
 
-    pub fn normalize(&self) -> Vec3 {
+    #[inline(always)]
+    pub fn normalize(self) -> Vec3 {
         Vec3(vecmath::vec3_normalized(self.0))
     }
 
-    pub fn cross(&self, rhs: &Vec3) -> Vec3 {
+    #[inline(always)]
+    pub fn cross(self, rhs: Vec3) -> Vec3 {
         Vec3(vecmath::vec3_cross(self.0, rhs.0))
     }
 
-    pub fn dot(&self, rhs: &Vec3) -> f32 {
+    #[inline(always)]
+    pub fn dot(self, rhs: Vec3) -> f32 {
         vecmath::vec3_dot(self.0, rhs.0)
     }
 
-    pub fn len(&self) -> f32 {
+    #[inline(always)]
+    pub fn len(self) -> f32 {
         vecmath::vec3_len(self.0)
     }
 }
@@ -39,6 +45,7 @@ impl Vec3 {
 impl Mul<Vec3> for f32 {
     type Output = Vec3; 
 
+    #[inline(always)]
     fn mul(self, rhs: Vec3) -> Vec3 {
         Vec3(vecmath::vec3_mul([self, self, self], rhs.0))
     }
@@ -47,6 +54,7 @@ impl Mul<Vec3> for f32 {
 impl Mul<f32> for Vec3 {
     type Output = Vec3; 
 
+    #[inline(always)]
     fn mul(self, rhs: f32) -> Vec3 {
         Vec3(vecmath::vec3_mul(self.0, [rhs, rhs, rhs]))
     }
@@ -55,6 +63,7 @@ impl Mul<f32> for Vec3 {
 impl Add<Vec3> for Vec3 {
     type Output = Vec3; 
 
+    #[inline(always)]
     fn add(self, rhs: Vec3) -> Vec3 {
         Vec3(vecmath::vec3_add(self.0, rhs.0))
     }
@@ -63,6 +72,7 @@ impl Add<Vec3> for Vec3 {
 impl Neg for Vec3 {
     type Output = Vec3; 
 
+    #[inline(always)]
     fn neg(self) -> Vec3 {
         Vec3(vecmath::vec3_neg(self.0))
     }
@@ -72,7 +82,8 @@ impl Neg for Vec3 {
 pub struct Vec4(pub vecmath::Vector4<f32>);
 
 impl Vec4 {
-    pub fn xyz(&self) -> Vec3 {
+    #[inline(always)]
+    pub fn xyz(self) -> Vec3 {
         Vec3([self.0[0], self.0[1], self.0[2]])
     }
 }
@@ -101,6 +112,7 @@ impl Debug for Mat4 {
 impl Mul<Mat4> for Mat4 {
     type Output = Mat4; 
 
+    #[inline(always)]
     fn mul(self, rhs: Mat4) -> Mat4 {
         Mat4(vecmath::col_mat4_mul(self.0, rhs.0))
     }
@@ -109,13 +121,15 @@ impl Mul<Mat4> for Mat4 {
 impl Mul<Vec4> for Mat4 {
     type Output = Vec4; 
 
+    #[inline(always)]
     fn mul(self, rhs: Vec4) -> Vec4 {
         Vec4(vecmath::col_mat4_transform(self.0, rhs.0))
     }
 }
 
 impl Mat4 {
-    pub fn rotation_around_vector(v: &Vec3, angle: f32 /* in Rad */) -> Mat4 {
+    #[inline(always)]
+    pub fn rotation_around_vector(v: Vec3, angle: f32 /* in rad */) -> Mat4 {
         let (x, y, z) = (v.0[0], v.0[1], v.0[2]);
         let a = 1.0 - angle.cos();
         Mat4([
@@ -126,11 +140,13 @@ impl Mat4 {
         ])
     }
 
-    pub fn inv(&self) -> Mat4 {
+    #[inline(always)]
+    pub fn inv(self) -> Mat4 {
         Mat4(vecmath::mat4_inv(self.0))
     }
 
-    pub fn transpose(&self) -> Mat4 {
+    #[inline(always)]
+    pub fn transpose(self) -> Mat4 {
         Mat4(vecmath::mat4_transposed(self.0))
     }
 }
