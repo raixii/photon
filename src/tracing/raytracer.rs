@@ -27,6 +27,8 @@ fn calc_ray(camera: &Camera, x: f32, y: f32, width: f32, height: f32) -> Vec3 {
 }
 
 fn nearest_triangle(triangles: &[Triangle], camera_pos: Vec3, ray: Vec3) -> Option<&Triangle> {
+    let mut current_candidate = None;
+
     for triangle in triangles {
         // (a, b, c) is the normal vector of the triangle's plane:  n = (t[1]-t[0]) x (t[2]-t[0])
         // Triangle plane:  ax + by + cz = d
@@ -46,7 +48,7 @@ fn nearest_triangle(triangles: &[Triangle], camera_pos: Vec3, ray: Vec3) -> Opti
         //     dot([a, b, c], camera_pos) + lambda * dot([a, b, c], ray) = d
         //     lambda = (d - dot([a, b, c], camera_pos)) / dot([a, b, c], ray)
         let lambda = (d - Vec3([a, b, c]).dot(camera_pos)) / Vec3([a, b, c]).dot(ray);
-        if !lambda.is_finite() {
+        if !lambda.is_finite() || lambda < 1.0 {
             continue;
         }
         let intersection = camera_pos + lambda * ray;
@@ -92,7 +94,11 @@ fn nearest_triangle(triangles: &[Triangle], camera_pos: Vec3, ray: Vec3) -> Opti
             continue;
         }
 
-        return Some(&triangle);
+        match current_candidate {
+            Some((current_lambda, _)) if current_lambda < lambda => {}
+            _ => current_candidate = Some((lambda, triangle)),
+        }
     }
-    None
+
+    current_candidate.map(|(_, triangle)| triangle)
 }

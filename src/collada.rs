@@ -72,8 +72,8 @@ pub fn read(xml: &str) -> Scene {
     )))
     .unwrap();
     let fov = fov_deg / 180.0 * PI;
-    let alpha = PI - fov / 2.0;
-    let image_plane_half_width = znear / (fov / 2.0).sin() * alpha.sin();
+    // let alpha = (PI - fov) / 2.0;
+    let image_plane_half_width = znear * (fov / 2.0).tan(); // * (fov / 2.0).sin() / alpha.sin();
     let image_plane_top_left = camera_position
         + znear * camera_look
         + image_plane_half_width * camera_left
