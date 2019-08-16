@@ -20,7 +20,7 @@ fn calc_ray(camera: &Camera, x: f32, y: f32, width: f32, height: f32) -> Vec3 {
     point_on_plane - camera.position
 }
 
-fn nearest_triangle(triangles: &Vec<Triangle>, camera_pos: Vec3, ray: Vec3) -> Option<&Triangle> {
+fn nearest_triangle(triangles: &[Triangle], camera_pos: Vec3, ray: Vec3) -> Option<&Triangle> {
     for triangle in triangles {
         // (a, b, c) is the normal vector of the triangle's plane:  n = (t[1]-t[0]) x (t[2]-t[0])
         // Triangle plane:  ax + by + cz = d

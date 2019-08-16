@@ -5,7 +5,6 @@ extern crate clap;
 
 use minifb::{Window, WindowOptions};
 use scene::Scene;
-use std::error::Error;
 use std::fmt::Debug;
 use std::fmt::Formatter;
 use std::io::Read;
@@ -65,8 +64,8 @@ fn main() -> Result<(), ErrorMessage> {
     } else {
         num_cpus::get()
     };
-    let window_w = 1024;
-    let window_h = 768;
+    let window_w = 1600;
+    let window_h = 900;
 
     let scene = {
         let path = matches.value_of("INPUT").unwrap();
@@ -115,8 +114,8 @@ fn main() -> Result<(), ErrorMessage> {
         .collect();
 
     let mut buffer = vec![0; window_w * window_h];
-    for x in 0..1024 {
-        for y in 0..768 {
+    for x in 0..window_w {
+        for y in 0..window_h {
             buffer[y * window_w + x] = if (x / 32) % 2 == (y / 32) % 2 {
                 0xFF_FF_FF
             } else {
