@@ -1,10 +1,10 @@
-use super::math::{Vec3};
+use super::math::Vec3;
 
 #[derive(Debug)]
 pub struct Scene {
     pub camera: Camera,
     pub triangles: Vec<Triangle>,
-    pub point_lights: Vec<PointLight>
+    pub point_lights: Vec<PointLight>,
 }
 
 #[derive(Debug)]
@@ -31,7 +31,7 @@ pub struct PointLight {
 pub struct Triangle {
     pub a: Vertex,
     pub b: Vertex,
-    pub c: Vertex,   
+    pub c: Vertex,
 }
 
 #[derive(Debug, Copy, Clone)]
