@@ -99,8 +99,16 @@ fn main() -> Result<(), ErrorMessage> {
                     if my_y >= window_h {
                         break;
                     }
-                    let color = raytrace(&my_thread_data.scene, my_x as f32, my_y as f32);
-                    my_sender.send((my_x, my_y, color)).unwrap();
+                    let color = raytrace(
+                        &my_thread_data.scene,
+                        my_x as f32,
+                        my_y as f32,
+                        window_w as f32,
+                        window_h as f32,
+                    );
+                    if let Some(color) = color {
+                        my_sender.send((my_x, my_y, color)).unwrap();
+                    }
                 }
             })
         })

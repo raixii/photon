@@ -1,5 +1,5 @@
 use std::fmt::{Debug, Formatter};
-use std::ops::{Add, Mul, Neg};
+use std::ops::{Add, Mul, Neg, Sub};
 
 #[derive(Copy, Clone, PartialEq)]
 pub struct Vec3(pub vecmath::Vector3<f32>);
@@ -94,6 +94,15 @@ impl Neg for Vec3 {
     #[inline(always)]
     fn neg(self) -> Vec3 {
         Vec3(vecmath::vec3_neg(self.0))
+    }
+}
+
+impl Sub<Vec3> for Vec3 {
+    type Output = Vec3;
+
+    #[inline(always)]
+    fn sub(self, rhs: Vec3) -> Vec3 {
+        Vec3(vecmath::vec3_sub(self.0, rhs.0))
     }
 }
 

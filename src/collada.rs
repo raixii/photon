@@ -1,6 +1,7 @@
 use super::math::{Mat4, Vec3, Vec4};
 use super::scene::{Camera, PointLight, Scene, Triangle, Vertex};
 use std::f32::consts::PI;
+use std::f32::EPSILON;
 use std::str::FromStr;
 use sxd_document::dom::{ChildOfElement, Document, Element};
 use sxd_document::parser;
@@ -45,9 +46,9 @@ pub fn read(xml: &str) -> Scene {
     let camera_left = (camera_transform * Vec4([-1.0, 0.0, 0.0, 0.0]))
         .xyz()
         .normalize();
-    if camera_look.dot(camera_up).abs() > 0.0001
-        || camera_look.dot(camera_left).abs() > 0.0001
-        || camera_left.dot(camera_up).abs() > 0.0001
+    if camera_look.dot(camera_up).abs() > EPSILON
+        || camera_look.dot(camera_left).abs() > EPSILON
+        || camera_left.dot(camera_up).abs() > EPSILON
     {
         panic!("Camera is transformed without keeping the angles.");
     }
