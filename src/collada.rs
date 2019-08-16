@@ -303,7 +303,7 @@ fn evaluate_xpath_element<'a>(node: Node<'a>, xpath: &str, context: &'a Context)
     }
 }
 
-fn get_text<'a>(element: Element<'a>) -> &'a str {
+fn get_text(element: Element) -> &str {
     if let ChildOfElement::Text(text) = element.children()[0] {
         text.text()
     } else {

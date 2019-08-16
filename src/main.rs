@@ -1,3 +1,5 @@
+#![warn(clippy::all)]
+
 #[macro_use]
 extern crate clap;
 
@@ -34,9 +36,9 @@ fn main() {
     for x in 0..1024 {
         for y in 0..768 {
             buffer[y * window_w + x] = if (x / 32) % 2 == (y / 32) % 2 {
-                0xFFFFFF
+                0xFF_FF_FF
             } else {
-                0x000000
+                0x00_00_00
             }
         }
     }

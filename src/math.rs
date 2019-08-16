@@ -136,32 +136,32 @@ impl Mul<Vec4> for Mat4 {
 }
 
 impl Mat4 {
-    #[inline(always)]
-    pub fn rotation_around_vector(v: Vec3, angle: f32 /* in rad */) -> Mat4 {
-        let (x, y, z) = (v.0[0], v.0[1], v.0[2]);
-        let a = 1.0 - angle.cos();
-        Mat4([
-            [
-                x * x * a + angle.cos(),
-                x * y * a - z * angle.sin(),
-                x * z * a + y * angle.sin(),
-                0.0,
-            ],
-            [
-                y * x * a + z * angle.sin(),
-                y * y * a + angle.cos(),
-                y * z * a - x * angle.sin(),
-                0.0,
-            ],
-            [
-                z * x * a - y * angle.sin(),
-                z * y * a + x * angle.sin(),
-                z * z * a + angle.cos(),
-                0.0,
-            ],
-            [0.0, 0.0, 0.0, 1.0],
-        ])
-    }
+    // #[inline(always)]
+    // pub fn rotation_around_vector(axis: Vec3, angle: f32 /* in rad */) -> Mat4 {
+    //     let (x, y, z) = (axis.0[0], axis.0[1], axis.0[2]);
+    //     let a = 1.0 - angle.cos();
+    //     Mat4([
+    //         [
+    //             x * x * a + angle.cos(),
+    //             x * y * a - z * angle.sin(),
+    //             x * z * a + y * angle.sin(),
+    //             0.0,
+    //         ],
+    //         [
+    //             y * x * a + z * angle.sin(),
+    //             y * y * a + angle.cos(),
+    //             y * z * a - x * angle.sin(),
+    //             0.0,
+    //         ],
+    //         [
+    //             z * x * a - y * angle.sin(),
+    //             z * y * a + x * angle.sin(),
+    //             z * z * a + angle.cos(),
+    //             0.0,
+    //         ],
+    //         [0.0, 0.0, 0.0, 1.0],
+    //     ])
+    // }
 
     #[inline(always)]
     pub fn inv(self) -> Mat4 {
