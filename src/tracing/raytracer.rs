@@ -4,7 +4,12 @@ use crate::scene::{Camera, Scene, Triangle};
 pub fn raytrace(scene: &Scene, x: f32, y: f32, width: f32, height: f32) -> Option<Vec3> {
     let ray = calc_ray(&scene.camera, x, y, width, height);
     let triangle = nearest_triangle(&scene.triangles, scene.camera.position, ray);
-    triangle.map(|_| Vec3([1.0, 0.0, 0.0]))
+    if let Some(triangle) = triangle {
+        let i = scene.triangles.iter().position(|t| t == triangle).unwrap();
+        Some(Vec3([1.0 / 12.0 * (i as f32), 0.0, 0.0]))
+    } else {
+        None
+    }
 }
 
 fn calc_ray(camera: &Camera, x: f32, y: f32, width: f32, height: f32) -> Vec3 {

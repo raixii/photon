@@ -27,14 +27,14 @@ pub struct PointLight {
     pub c: f32,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Triangle {
     pub a: Vertex,
     pub b: Vertex,
     pub c: Vertex,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Vertex {
     pub position: Vec3,
     pub normal: Vec3,
