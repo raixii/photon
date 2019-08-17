@@ -12,7 +12,7 @@ pub fn raytrace(scene: &Scene, x: f64, y: f64, width: f64, height: f64) -> Optio
             let mut ray_to_light = point_light.position - shoot_result.hit_pos;
             let dist_to_light = ray_to_light.len();
             ray_to_light /= dist_to_light;
-            let cos_n_ray = shoot_result.triangle.a.normal.dot(ray_to_light);
+            let cos_n_ray = shoot_result.weighted_normal().dot(ray_to_light);
             if cos_n_ray <= 0.0 {
                 continue;
             }
@@ -47,6 +47,15 @@ struct RayShootResult<'a> {
     triangle: &'a Triangle,
     barycentric_coords: Vec3,
     hit_pos: Vec3,
+}
+
+impl<'a> RayShootResult<'a> {
+    fn weighted_normal(&self) -> Vec3 {
+        (self.triangle.a.normal * self.barycentric_coords.x()
+            + self.triangle.b.normal * self.barycentric_coords.y()
+            + self.triangle.c.normal * self.barycentric_coords.z())
+        .normalize()
+    }
 }
 
 fn shoot_ray(
