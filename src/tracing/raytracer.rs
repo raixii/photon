@@ -7,6 +7,7 @@ pub fn raytrace(scene: &Scene, x: f64, y: f64, width: f64, height: f64) -> Optio
     let ray = calc_ray(&scene.camera, x, y, width, height);
     let bvh = scene.triangles_bvh.as_ref().unwrap().root();
     if let Some(shoot_result) = shoot_ray(bvh, scene.camera.position, ray, 1.0, INFINITY) {
+        let dist_to_eye = shoot_result.lambda * ray.len();
         let mut result = Vec3([0.0; 3]);
         for point_light in &scene.point_lights {
             let mut ray_to_light = point_light.position - shoot_result.hit_pos;
@@ -21,7 +22,11 @@ pub fn raytrace(scene: &Scene, x: f64, y: f64, width: f64, height: f64) -> Optio
             if light_shoot_result.is_some() {
                 continue;
             }
-            result += Vec3([0.8; 3]) * point_light.color * cos_n_ray;
+            let attenuation_dist = dist_to_light + dist_to_eye;
+            let attenuation = point_light.a * attenuation_dist * attenuation_dist
+                + point_light.b * attenuation_dist
+                + point_light.c;
+            result += Vec3([0.8; 3]) * point_light.color * (cos_n_ray / attenuation);
         }
         Some(result)
     } else {

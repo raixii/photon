@@ -155,11 +155,17 @@ fn main() -> Result<(), ErrorMessage> {
     while window.is_open() {
         for (x, y, mut color) in receiver.try_iter() {
             for i in 0..3 {
-                color.0[i] = (color.0[i] / (1.0 + color.0[i])).powf(2.2);
+                color.0[i] *= 1.0 / 800.0; // exposure
+                                           //color.0[i] = color.0[i] / (1.0 + color.0[i]); // tone-mapping
+                                           //  color.0[i] = color.0[i].min(1.0);
+                color.0[i] = (0.0f64.max(color.0[i] - 0.004));
+                color.0[i] = (color.0[i] * (6.2 * color.0[i] + 0.5))
+                    / (color.0[i] * (6.2 * color.0[i] + 1.7) + 0.06);
+                //   color.0[i] = color.0[i].powf(1.0 / 2.2); // gamma correction
+                color.0[i] *= 255.0; // machine numbers
             }
-            buffer[y * window_w + x] = (((color.x() * 255.0) as u32) << 16)
-                | (((color.y() * 255.0) as u32) << 8)
-                | ((color.z() * 255.0) as u32);
+            buffer[y * window_w + x] =
+                ((color.x() as u32) << 16) | ((color.y() as u32) << 8) | (color.z() as u32);
         }
         window.update_with_buffer(&buffer).map_err(|_| "Cannot update the window.")?;
         thread::sleep(time::Duration::from_millis(250));
