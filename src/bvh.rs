@@ -59,6 +59,36 @@ pub fn build<T: HasAABB + Clone + Debug>(objects: &[T]) -> Option<Node<T>> {
 
 fn build_layer<T: HasAABB + Debug>(mut children: Vec<Node<T>>) -> Vec<Node<T>> {
     let mut parents = Vec::with_capacity(children.len() / 2 + 1);
+    let mut prev_child: Option<Node<T>> = None;
+
+    for child in children.drain(..) {
+        if let Some(unwrapped_prev_child) = prev_child {
+            parents.push(Node {
+                aabb_min: unwrapped_prev_child.aabb_min.min(child.aabb_min),
+                aabb_max: unwrapped_prev_child.aabb_max.max(child.aabb_max),
+                value: Value::Node(Box::new(unwrapped_prev_child), Box::new(child)),
+            });
+            prev_child = None;
+        } else {
+            prev_child = Some(child);
+        }
+    }
+
+    if let Some(unwrapped_prev_child) = prev_child {
+        parents.push(unwrapped_prev_child);
+    }
+
+    drop(children);
+    if parents.len() <= 1 {
+        parents
+    } else {
+        build_layer(parents)
+    }
+}
+
+/*
+fn build_layer<T: HasAABB + Debug>(mut children: Vec<Node<T>>) -> Vec<Node<T>> {
+    let mut parents = Vec::with_capacity(children.len() / 2 + 1);
 
     while children.len() > 1 {
         let mut min_diag = std::f32::INFINITY;
@@ -98,3 +128,4 @@ fn build_layer<T: HasAABB + Debug>(mut children: Vec<Node<T>>) -> Vec<Node<T>> {
         build_layer(parents)
     }
 }
+*/
