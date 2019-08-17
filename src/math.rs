@@ -59,6 +59,24 @@ impl Vec3 {
     pub fn z(self) -> f32 {
         self.0[2]
     }
+
+    #[inline(always)]
+    pub fn min(self, other: Vec3) -> Vec3 {
+        Vec3([
+            self.0[0].min(other.0[0]),
+            self.0[1].min(other.0[1]),
+            self.0[2].min(other.0[2]),
+        ])
+    }
+
+    #[inline(always)]
+    pub fn max(self, other: Vec3) -> Vec3 {
+        Vec3([
+            self.0[0].max(other.0[0]),
+            self.0[1].max(other.0[1]),
+            self.0[2].max(other.0[2]),
+        ])
+    }
 }
 
 impl Mul<Vec3> for f32 {
@@ -215,4 +233,9 @@ impl AlmostEq for f32 {
     fn almost_zero(self) -> bool {
         self.abs() < EPS
     }
+}
+
+pub trait HasAABB {
+    // The first Vec3 has to be the minimum coordinate of the AABB, the second the maximum.
+    fn calculate_aabb(&self) -> (Vec3, Vec3);
 }

@@ -5,14 +5,11 @@ extern crate clap;
 
 use minifb::{Window, WindowOptions};
 use scene::Scene;
-use std::fmt::Debug;
-use std::fmt::Formatter;
-use std::io::Read;
-use std::str::FromStr;
-use std::sync::Arc;
-use std::{fs, sync::atomic, sync::mpsc, thread, time};
+use std::fmt::{Debug, Formatter};
+use std::{fs, io::Read, str::FromStr, sync::atomic, sync::mpsc, sync::Arc, thread, time};
 use tracing::raytrace;
 
+mod bvh;
 mod collada;
 mod math;
 mod scene;
@@ -45,7 +42,7 @@ impl From<&str> for ErrorMessage {
 }
 
 fn main() -> Result<(), ErrorMessage> {
-    let matches = clap_app!(photon =>
+    let clap_app = clap_app!(photon =>
         (version: crate_version!())
         (author: crate_authors!("; "))
         (about: crate_description!())
@@ -53,8 +50,8 @@ fn main() -> Result<(), ErrorMessage> {
         (@arg OUTPUT: +required "PNG file to write")
         (@arg headless: -H --headless "Do not show the GUI")
         (@arg threads: -t --threads +takes_value "Number of worker threads")
-    )
-    .get_matches();
+    );
+    let matches = clap_app.get_matches();
     let thread_count = if let Some(tc) = matches.value_of("threads") {
         let tc = FromStr::from_str(tc).map_err(|_| "--threads expects a number.")?;
         if tc < 1 {
@@ -68,6 +65,7 @@ fn main() -> Result<(), ErrorMessage> {
     let window_h = 900;
 
     let scene = {
+        let start_time = time::Instant::now();
         let path = matches.value_of("INPUT").unwrap();
         let mut infile =
             fs::File::open(path).map_err(|e| format!("File {} cannot be opened: {}", path, e))?;
@@ -76,7 +74,20 @@ fn main() -> Result<(), ErrorMessage> {
             .read_to_end(&mut buffer)
             .map_err(|e| format!("File {} cannot be read: {}", path, e))?;
         let collada_xml = String::from_utf8_lossy(&buffer);
-        collada::read(&collada_xml)
+        let mut scene = collada::read(&collada_xml);
+        let end_time = time::Instant::now();
+        eprintln!(
+            "Parsing COLLADA: {} ms",
+            (end_time - start_time).as_millis()
+        );
+
+        let start_time = time::Instant::now();
+        let bvh = bvh::build(&scene.triangles);
+        scene.triangles_bvh = bvh;
+        let end_time = time::Instant::now();
+        eprintln!("Building BVH: {} ms", (end_time - start_time).as_millis());
+
+        scene
     };
 
     let (sender, receiver) = mpsc::channel();

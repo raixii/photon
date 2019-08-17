@@ -1,10 +1,12 @@
-use crate::math::Vec3;
+use crate::bvh;
+use crate::math::{HasAABB, Vec3};
 
 #[derive(Debug)]
 pub struct Scene {
     pub camera: Camera,
     pub triangles: Vec<Triangle>,
     pub point_lights: Vec<PointLight>,
+    pub triangles_bvh: Option<bvh::Node<Triangle>>,
 }
 
 #[derive(Debug)]
@@ -32,6 +34,14 @@ pub struct Triangle {
     pub a: Vertex,
     pub b: Vertex,
     pub c: Vertex,
+}
+
+impl HasAABB for Triangle {
+    fn calculate_aabb(&self) -> (Vec3, Vec3) {
+        let min = self.a.position.min(self.b.position).min(self.c.position);
+        let max = self.a.position.max(self.b.position).max(self.c.position);
+        (min, max)
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]

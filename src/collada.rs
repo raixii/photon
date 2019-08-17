@@ -144,6 +144,8 @@ pub fn read(xml: &str) -> Scene {
         });
     }
 
+    // Import Objects
+
     let mut triangles = Vec::new();
     let object_elements = evaluate_xpath_element_all(
         Node::Element(visual_scene),
@@ -252,6 +254,7 @@ pub fn read(xml: &str) -> Scene {
         camera,
         triangles,
         point_lights,
+        triangles_bvh: None,
     }
 }
 
