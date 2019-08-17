@@ -71,8 +71,8 @@ impl<T: HasAABB + Debug + Clone> Bvh<T> {
         let node_count = (1 << layer_count) - 1;
         let mut nodes = vec![
             Node {
-                aabb_min: Vec3([std::f32::NAN; 3]),
-                aabb_max: Vec3([std::f32::NAN; 3]),
+                aabb_min: Vec3([std::f64::NAN; 3]),
+                aabb_max: Vec3([std::f64::NAN; 3]),
                 value: Value::Empty
             };
             node_count

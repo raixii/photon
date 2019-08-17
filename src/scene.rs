@@ -13,8 +13,8 @@ pub struct Scene {
 pub struct Camera {
     pub position: Vec3,
     pub top_left_corner: Vec3,
-    pub plane_width: f32,
-    pub plane_height: f32,
+    pub plane_width: f64,
+    pub plane_height: f64,
     pub right_vector: Vec3,
     pub down_vector: Vec3,
 }
@@ -24,9 +24,9 @@ pub struct PointLight {
     pub position: Vec3,
     pub color: Vec3,
     // Light attenuation ax² + bx + c
-    pub a: f32,
-    pub b: f32,
-    pub c: f32,
+    pub a: f64,
+    pub b: f64,
+    pub c: f64,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]

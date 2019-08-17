@@ -1,6 +1,6 @@
 use crate::math::{AlmostEq, Mat4, Vec3, Vec4};
 use crate::scene::{Camera, PointLight, Scene, Triangle, Vertex};
-use std::f32::consts::PI;
+use std::f64::consts::PI;
 use std::str::FromStr;
 use sxd_document::dom::{ChildOfElement, Document, Element};
 use sxd_document::parser;
@@ -43,19 +43,19 @@ pub fn read(xml: &str) -> Scene {
         panic!("Camera is transformed without keeping the angles.");
     }
 
-    let aspect_ratio: f32 = FromStr::from_str(get_text(evaluate_xpath_element(
+    let aspect_ratio: f64 = FromStr::from_str(get_text(evaluate_xpath_element(
         Node::Element(camera_specs),
         "./c:optics/c:technique_common/c:perspective/c:aspect_ratio",
         &context,
     )))
     .unwrap();
-    let znear: f32 = FromStr::from_str(get_text(evaluate_xpath_element(
+    let znear: f64 = FromStr::from_str(get_text(evaluate_xpath_element(
         Node::Element(camera_specs),
         "./c:optics/c:technique_common/c:perspective/c:znear",
         &context,
     )))
     .unwrap();
-    let fov_deg: f32 = FromStr::from_str(get_text(evaluate_xpath_element(
+    let fov_deg: f64 = FromStr::from_str(get_text(evaluate_xpath_element(
         Node::Element(camera_specs),
         "./c:optics/c:technique_common/c:perspective/c:xfov",
         &context,
@@ -100,24 +100,24 @@ pub fn read(xml: &str) -> Scene {
                 "./c:technique_common/c:point/c:color",
                 &context,
             ));
-            let rgb: Vec<f32> =
+            let rgb: Vec<f64> =
                 color.split_whitespace().map(|c| FromStr::from_str(c).unwrap()).collect();
             Vec3([rgb[0], rgb[1], rgb[2]])
         };
 
-        let a: f32 = FromStr::from_str(get_text(evaluate_xpath_element(
+        let a: f64 = FromStr::from_str(get_text(evaluate_xpath_element(
             Node::Element(light_node),
             "./c:technique_common/c:point/c:quadratic_attenuation",
             &context,
         )))
         .unwrap();
-        let b: f32 = FromStr::from_str(get_text(evaluate_xpath_element(
+        let b: f64 = FromStr::from_str(get_text(evaluate_xpath_element(
             Node::Element(light_node),
             "./c:technique_common/c:point/c:linear_attenuation",
             &context,
         )))
         .unwrap();
-        let c: f32 = FromStr::from_str(get_text(evaluate_xpath_element(
+        let c: f64 = FromStr::from_str(get_text(evaluate_xpath_element(
             Node::Element(light_node),
             "./c:technique_common/c:point/c:constant_attenuation",
             &context,

@@ -1,9 +1,9 @@
 use crate::bvh::{BvhChild, BvhNode};
 use crate::math::{AlmostEq, Vec3, EPS};
 use crate::scene::{Camera, Scene, Triangle};
-use std::f32::{INFINITY, NEG_INFINITY};
+use std::f64::{INFINITY, NEG_INFINITY};
 
-pub fn raytrace(scene: &Scene, x: f32, y: f32, width: f32, height: f32) -> Option<Vec3> {
+pub fn raytrace(scene: &Scene, x: f64, y: f64, width: f64, height: f64) -> Option<Vec3> {
     let ray = calc_ray(&scene.camera, x, y, width, height);
     let bvh = scene.triangles_bvh.as_ref().unwrap().root();
     if let Some(shoot_result) = shoot_ray(bvh, scene.camera.position, ray, 1.0, INFINITY) {
@@ -29,7 +29,7 @@ pub fn raytrace(scene: &Scene, x: f32, y: f32, width: f32, height: f32) -> Optio
     }
 }
 
-fn calc_ray(camera: &Camera, x: f32, y: f32, width: f32, height: f32) -> Vec3 {
+fn calc_ray(camera: &Camera, x: f64, y: f64, width: f64, height: f64) -> Vec3 {
     let point_on_plane = {
         let p_x = camera.plane_width * x / width;
         let p_y = camera.plane_height * y / height;
@@ -43,7 +43,7 @@ fn calc_ray(camera: &Camera, x: f32, y: f32, width: f32, height: f32) -> Vec3 {
 }
 
 struct RayShootResult<'a> {
-    lambda: f32,
+    lambda: f64,
     triangle: &'a Triangle,
     barycentric_coords: Vec3,
     hit_pos: Vec3,
@@ -53,8 +53,8 @@ fn shoot_ray(
     bvh: BvhNode<Triangle>,
     ray_origin: Vec3,
     ray: Vec3,
-    min_dist: f32,
-    max_dist: f32,
+    min_dist: f64,
+    max_dist: f64,
 ) -> Option<RayShootResult> {
     // These two equations describe all lambda for which the ray is inside an AABB:
     //     aabb_min <= ray_origin + lambda * ray

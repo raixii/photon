@@ -64,8 +64,8 @@ fn main() -> Result<(), ErrorMessage> {
     } else {
         num_cpus::get()
     };
-    let window_w = 1600 / 2;
-    let window_h = 900 / 2;
+    let window_w = 1600;
+    let window_h = 900;
 
     let scene = {
         let start_time = time::Instant::now();
@@ -112,10 +112,10 @@ fn main() -> Result<(), ErrorMessage> {
                     }
                     let color = raytrace(
                         &my_thread_data.scene,
-                        my_x as f32,
-                        my_y as f32,
-                        window_w as f32,
-                        window_h as f32,
+                        my_x as f64,
+                        my_y as f64,
+                        window_w as f64,
+                        window_h as f64,
                     );
                     if let Some(color) = color {
                         my_sender.send((my_x, my_y, color)).unwrap();

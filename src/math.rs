@@ -2,7 +2,7 @@ use std::fmt::{Debug, Formatter};
 use std::ops::{Add, AddAssign, DivAssign, Mul, Neg, Sub};
 
 #[derive(Copy, Clone, PartialEq)]
-pub struct Vec3(pub vecmath::Vector3<f32>);
+pub struct Vec3(pub vecmath::Vector3<f64>);
 
 impl Debug for Vec3 {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
@@ -32,32 +32,32 @@ impl Vec3 {
     }
 
     #[inline(always)]
-    pub fn dot(self, rhs: Vec3) -> f32 {
+    pub fn dot(self, rhs: Vec3) -> f64 {
         vecmath::vec3_dot(self.0, rhs.0)
     }
 
     #[inline(always)]
-    pub fn len(self) -> f32 {
+    pub fn len(self) -> f64 {
         vecmath::vec3_len(self.0)
     }
 
     #[inline(always)]
-    pub fn sqlen(self) -> f32 {
+    pub fn sqlen(self) -> f64 {
         vecmath::vec3_square_len(self.0)
     }
 
     #[inline(always)]
-    pub fn x(self) -> f32 {
+    pub fn x(self) -> f64 {
         self.0[0]
     }
 
     #[inline(always)]
-    pub fn y(self) -> f32 {
+    pub fn y(self) -> f64 {
         self.0[1]
     }
 
     #[inline(always)]
-    pub fn z(self) -> f32 {
+    pub fn z(self) -> f64 {
         self.0[2]
     }
 
@@ -72,7 +72,7 @@ impl Vec3 {
     }
 }
 
-impl Mul<Vec3> for f32 {
+impl Mul<Vec3> for f64 {
     type Output = Vec3;
 
     #[inline(always)]
@@ -81,11 +81,11 @@ impl Mul<Vec3> for f32 {
     }
 }
 
-impl Mul<f32> for Vec3 {
+impl Mul<f64> for Vec3 {
     type Output = Vec3;
 
     #[inline(always)]
-    fn mul(self, rhs: f32) -> Vec3 {
+    fn mul(self, rhs: f64) -> Vec3 {
         Vec3(vecmath::vec3_mul(self.0, [rhs, rhs, rhs]))
     }
 }
@@ -124,9 +124,9 @@ impl AddAssign<Vec3> for Vec3 {
     }
 }
 
-impl DivAssign<f32> for Vec3 {
+impl DivAssign<f64> for Vec3 {
     #[inline(always)]
-    fn div_assign(&mut self, rhs: f32) {
+    fn div_assign(&mut self, rhs: f64) {
         self.0[0] /= rhs;
         self.0[1] /= rhs;
         self.0[2] /= rhs;
@@ -134,7 +134,7 @@ impl DivAssign<f32> for Vec3 {
 }
 
 #[derive(Copy, Clone, PartialEq)]
-pub struct Vec4(pub vecmath::Vector4<f32>);
+pub struct Vec4(pub vecmath::Vector4<f64>);
 
 impl Vec4 {
     #[inline(always)]
@@ -150,7 +150,7 @@ impl Debug for Vec4 {
 }
 
 #[derive(Copy, Clone, PartialEq)]
-pub struct Mat4(pub vecmath::Matrix4<f32>); // column major
+pub struct Mat4(pub vecmath::Matrix4<f64>); // column major
 
 impl Debug for Mat4 {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
@@ -184,7 +184,7 @@ impl Mul<Vec4> for Mat4 {
 
 impl Mat4 {
     // #[inline(always)]
-    // pub fn rotation_around_vector(axis: Vec3, angle: f32 /* in rad */) -> Mat4 {
+    // pub fn rotation_around_vector(axis: Vec3, angle: f64 /* in rad */) -> Mat4 {
     //     let (x, y, z) = (axis.0[0], axis.0[1], axis.0[2]);
     //     let a = 1.0 - angle.cos();
     //     Mat4([
@@ -221,16 +221,16 @@ impl Mat4 {
     }
 }
 
-pub const EPS: f32 = 1e-5;
+pub const EPS: f64 = 2e-7;
 
 pub trait AlmostEq {
     fn almost_eq(self, rhs: Self) -> bool;
     fn almost_zero(self) -> bool;
 }
 
-impl AlmostEq for f32 {
+impl AlmostEq for f64 {
     #[inline(always)]
-    fn almost_eq(self, rhs: f32) -> bool {
+    fn almost_eq(self, rhs: f64) -> bool {
         (self - rhs).abs() < EPS
     }
 
