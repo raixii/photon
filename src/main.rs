@@ -153,7 +153,10 @@ fn main() -> Result<(), ErrorMessage> {
         .map_err(|_| "Cannot open the window.")?;
     let mut printed_time = false;
     while window.is_open() {
-        for (x, y, color) in receiver.try_iter() {
+        for (x, y, mut color) in receiver.try_iter() {
+            for i in 0..3 {
+                color.0[i] = (color.0[i] / (1.0 + color.0[i])).powf(2.2);
+            }
             buffer[y * window_w + x] = (((color.x() * 255.0) as u32) << 16)
                 | (((color.y() * 255.0) as u32) << 8)
                 | ((color.z() * 255.0) as u32);

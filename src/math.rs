@@ -90,6 +90,15 @@ impl Mul<f64> for Vec3 {
     }
 }
 
+impl Mul<Vec3> for Vec3 {
+    type Output = Vec3;
+
+    #[inline(always)]
+    fn mul(self, rhs: Vec3) -> Vec3 {
+        Vec3(vecmath::vec3_mul(self.0, rhs.0))
+    }
+}
+
 impl Add<Vec3> for Vec3 {
     type Output = Vec3;
 

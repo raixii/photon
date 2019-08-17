@@ -21,7 +21,7 @@ pub fn raytrace(scene: &Scene, x: f64, y: f64, width: f64, height: f64) -> Optio
             if light_shoot_result.is_some() {
                 continue;
             }
-            result += Vec3([0.8; 3]) * cos_n_ray;
+            result += Vec3([0.8; 3]) * point_light.color * cos_n_ray;
         }
         Some(result)
     } else {
