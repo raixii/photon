@@ -1,5 +1,5 @@
 use crate::bvh::{BvhChild, BvhNode};
-use crate::math::{AlmostEq, Vec3};
+use crate::math::{AlmostEq, Vec3, EPS};
 use crate::scene::{Camera, Scene, Triangle};
 use std::f32::{INFINITY, NEG_INFINITY};
 
@@ -90,7 +90,7 @@ fn shoot_ray(
             // We ignore false positive here
         }
     }
-    if lambda_max < lambda_min || lambda_max > max_dist || lambda_min < min_dist {
+    if lambda_max < lambda_min || lambda_min > max_dist || lambda_max < min_dist {
         return None;
     }
 
