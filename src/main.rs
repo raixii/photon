@@ -3,6 +3,7 @@
 #[macro_use]
 extern crate clap;
 
+use bvh::Bvh;
 use minifb::{Window, WindowOptions};
 use scene::Scene;
 use std::fmt::{Debug, Formatter};
@@ -63,8 +64,8 @@ fn main() -> Result<(), ErrorMessage> {
     } else {
         num_cpus::get()
     };
-    let window_w = 1600;
-    let window_h = 900;
+    let window_w = 1600 / 2;
+    let window_h = 900 / 2;
 
     let scene = {
         let start_time = time::Instant::now();
@@ -81,8 +82,8 @@ fn main() -> Result<(), ErrorMessage> {
         eprintln!("Parsing COLLADA: {} ms", (end_time - start_time).as_millis());
 
         let start_time = time::Instant::now();
-        let bvh = bvh::build(&scene.triangles);
-        scene.triangles_bvh = bvh;
+        let bvh = Bvh::new(&scene.triangles);
+        scene.triangles_bvh = Some(bvh);
         let end_time = time::Instant::now();
         eprintln!("Building BVH: {} ms", (end_time - start_time).as_millis());
 

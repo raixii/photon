@@ -1,131 +1,145 @@
 use crate::math::{HasAABB, Vec3};
 use std::fmt::Debug;
 
-#[derive(Debug)]
-pub enum Value<T: HasAABB + Debug> {
-    Node(Box<Node<T>>, Box<Node<T>>),
+#[derive(Debug, Clone)]
+enum Value<T: HasAABB + Debug + Clone> {
+    Node,
+    Empty,
     Leaf(T),
 }
 
-#[derive(Debug)]
-pub struct Node<T: HasAABB + Debug> {
+impl<T: HasAABB + Debug + Clone> Value<T> {
+    fn is_empty(&self) -> bool {
+        match self {
+            Value::Empty => true,
+            _ => false,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct Node<T: HasAABB + Debug + Clone> {
     aabb_min: Vec3,
     aabb_max: Vec3,
     value: Value<T>,
 }
 
 #[derive(Debug)]
-pub struct Bvh<T: HasAABB + Debug> {
-    nodes: Vec<Node<T>>,
+pub struct Bvh<T: HasAABB + Debug + Clone> {
     // root = 0
     // child1 = parent*2 + 1
     // child2 = parent*2 + 2
+    nodes: Vec<Node<T>>,
 }
 
-impl<T: HasAABB + Debug> Node<T> {
+pub struct BvhNode<'a, T: HasAABB + Debug + Clone> {
+    bvh: &'a Bvh<T>,
+    index: usize,
+}
+
+pub enum BvhChild<'a, T: HasAABB + Debug + Clone> {
+    Nodes(BvhNode<'a, T>, BvhNode<'a, T>),
+    Leaf(&'a T),
+}
+
+impl<'a, T: HasAABB + Debug + Clone> BvhNode<'a, T> {
     pub fn aabb_min(&self) -> Vec3 {
-        self.aabb_min
+        self.bvh.nodes[self.index].aabb_min
     }
 
     pub fn aabb_max(&self) -> Vec3 {
-        self.aabb_max
+        self.bvh.nodes[self.index].aabb_max
     }
 
-    pub fn value(&self) -> &Value<T> {
-        &self.value
-    }
-}
-
-pub fn build<T: HasAABB + Clone + Debug>(objects: &[T]) -> Option<Node<T>> {
-    // let layer_count = (objects.len() as f64).log2().ceil() as usize + 1;
-    let mut leafs = Vec::with_capacity(objects.len());
-    for object in objects {
-        let (aabb_min, aabb_max) = object.calculate_aabb();
-        leafs.push(Node {
-            aabb_min,
-            aabb_max,
-            value: Value::Leaf(object.clone()),
-        });
-    }
-    let mut root_layer = build_layer(leafs);
-    if root_layer.is_empty() {
-        None
-    } else if root_layer.len() == 1 {
-        Some(root_layer.remove(0))
-    } else {
-        unreachable!()
-    }
-}
-
-fn build_layer<T: HasAABB + Debug>(mut children: Vec<Node<T>>) -> Vec<Node<T>> {
-    let mut parents = Vec::with_capacity(children.len() / 2 + 1);
-    let mut prev_child: Option<Node<T>> = None;
-
-    for child in children.drain(..) {
-        if let Some(unwrapped_prev_child) = prev_child {
-            parents.push(Node {
-                aabb_min: unwrapped_prev_child.aabb_min.min(child.aabb_min),
-                aabb_max: unwrapped_prev_child.aabb_max.max(child.aabb_max),
-                value: Value::Node(Box::new(unwrapped_prev_child), Box::new(child)),
-            });
-            prev_child = None;
-        } else {
-            prev_child = Some(child);
+    pub fn value(&self) -> BvhChild<'a, T> {
+        match self.bvh.nodes[self.index].value {
+            Value::Empty => unreachable!(),
+            Value::Leaf(ref v) => BvhChild::Leaf(v),
+            Value::Node => BvhChild::Nodes(
+                BvhNode { bvh: self.bvh, index: self.index * 2 + 1 },
+                BvhNode { bvh: self.bvh, index: self.index * 2 + 2 },
+            ),
         }
     }
-
-    if let Some(unwrapped_prev_child) = prev_child {
-        parents.push(unwrapped_prev_child);
-    }
-
-    drop(children);
-    if parents.len() <= 1 {
-        parents
-    } else {
-        build_layer(parents)
-    }
 }
 
-/*
-fn build_layer<T: HasAABB + Debug>(mut children: Vec<Node<T>>) -> Vec<Node<T>> {
-    let mut parents = Vec::with_capacity(children.len() / 2 + 1);
+impl<T: HasAABB + Debug + Clone> Bvh<T> {
+    pub fn new(objects: &[T]) -> Bvh<T> {
+        let layer_count = (objects.len() as f64).log2().ceil() as usize + 1;
+        let node_count = (1 << layer_count) - 1;
+        let mut nodes = vec![
+            Node {
+                aabb_min: Vec3([std::f32::NAN; 3]),
+                aabb_max: Vec3([std::f32::NAN; 3]),
+                value: Value::Empty
+            };
+            node_count
+        ];
 
-    while children.len() > 1 {
-        let mut min_diag = std::f32::INFINITY;
-        let mut min_i = 0;
-        for i in 0..children.len() - 1 {
-            let candiate_aabb_min = children[i]
-                .aabb_min()
-                .min(children.last().unwrap().aabb_min());
-            let candiate_aabb_max = children[i]
-                .aabb_max()
-                .max(children.last().unwrap().aabb_max());
-            let diag = (candiate_aabb_max - candiate_aabb_min).sqlen();
-            if diag < min_diag {
-                min_diag = diag;
-                min_i = i;
+        // init leaves
+        for i in 0..objects.len() {
+            let (aabb_min, aabb_max) = objects[i].calculate_aabb();
+            nodes[node_count / 2 + 1 + i] =
+                Node { aabb_min, aabb_max, value: Value::Leaf(objects[i].clone()) };
+        }
+
+        // init parent layers
+        for layer in (0..(layer_count - 1)).rev() {
+            let layer_start = (1 << layer) - 1;
+            let layer_end = (1 << (layer + 1)) - 1;
+            for i in layer_start..layer_end {
+                let child_a = &nodes[2 * i + 1];
+                let child_b = &nodes[2 * i + 2];
+                match (&child_a.value, &child_b.value) {
+                    (Value::Empty, Value::Empty) => {}
+                    (Value::Empty, _) => {
+                        //      i
+                        //    n   e
+                        //  n1 n2
+                        // ......
+                        //
+                        // 1. n -> i
+                        // 2. n1 -> e
+                        // 3. n2 -> n
+                        let n = 2 * i + 2;
+                        let e = 2 * i + 1;
+                        // 1. n -> a
+                        nodes.swap(n, i);
+                        // 2. n1 -> e
+                        swap_tree_rec(&mut nodes, n * 2 + 1, e);
+                        // 3. n2 -> n
+                        swap_tree_rec(&mut nodes, n * 2 + 2, n);
+                    }
+                    (_, Value::Empty) => {
+                        let e = 2 * i + 2;
+                        let n = 2 * i + 1;
+                        nodes.swap(n, i);
+                        swap_tree_rec(&mut nodes, n * 2 + 1, e);
+                        swap_tree_rec(&mut nodes, n * 2 + 2, n);
+                    }
+                    (_, _) => {
+                        nodes[i] = Node {
+                            aabb_min: child_a.aabb_min.min(child_b.aabb_min),
+                            aabb_max: child_a.aabb_max.max(child_b.aabb_max),
+                            value: Value::Node,
+                        }
+                    }
+                }
             }
         }
 
-        let a = children.swap_remove(children.len() - 1);
-        let b = children.swap_remove(min_i);
-        parents.push(Node {
-            aabb_min: a.aabb_min().min(b.aabb_min()),
-            aabb_max: a.aabb_max().max(b.aabb_max()),
-            value: Value::Node(Box::new(a), Box::new(b)),
-        });
+        Bvh { nodes }
     }
 
-    if !children.is_empty() {
-        parents.push(children.remove(0));
-    }
-
-    assert!(children.is_empty());
-
-    if parents.len() <= 1 {
-        parents
-    } else {
-        build_layer(parents)
+    pub fn root(&self) -> BvhNode<'_, T> {
+        BvhNode { bvh: self, index: 0 }
     }
 }
-*/
+
+fn swap_tree_rec<T: HasAABB + Debug + Clone>(nodes: &mut Vec<Node<T>>, from: usize, to: usize) {
+    if from < nodes.len() && to < nodes.len() && !nodes[from].value.is_empty() {
+        nodes.swap(from, to);
+        swap_tree_rec(nodes, from * 2 + 1, to * 2 + 1);
+        swap_tree_rec(nodes, from * 2 + 2, to * 2 + 2);
+    }
+}

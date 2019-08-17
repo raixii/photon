@@ -1,11 +1,15 @@
-use crate::bvh;
+use crate::bvh::{BvhChild, BvhNode};
 use crate::math::{AlmostEq, Vec3};
 use crate::scene::{Camera, Scene, Triangle};
 
 pub fn raytrace(scene: &Scene, x: f32, y: f32, width: f32, height: f32) -> Option<Vec3> {
     let ray = calc_ray(&scene.camera, x, y, width, height);
-    let triangle =
-        nearest_triangle(scene.triangles_bvh.as_ref().unwrap(), scene.camera.position, ray, 1.0);
+    let triangle = nearest_triangle(
+        scene.triangles_bvh.as_ref().unwrap().root(),
+        scene.camera.position,
+        ray,
+        1.0,
+    );
     if let Some((triangle, _)) = triangle {
         let i = scene.triangles.iter().position(|t| t == triangle).unwrap();
         Some(Vec3([1.0 / (scene.triangles.len() as f32) * (i as f32), 0.0, 0.0]))
@@ -28,7 +32,7 @@ fn calc_ray(camera: &Camera, x: f32, y: f32, width: f32, height: f32) -> Vec3 {
 }
 
 fn nearest_triangle(
-    bvh: &bvh::Node<Triangle>,
+    bvh: BvhNode<Triangle>,
     ray_origin: Vec3,
     ray: Vec3,
     min_dist: f32,
@@ -75,10 +79,10 @@ fn nearest_triangle(
     }
 
     match bvh.value() {
-        bvh::Value::Node(a, b) => {
+        BvhChild::Nodes(a, b) => {
             match (
-                nearest_triangle(&a, ray_origin, ray, min_dist),
-                nearest_triangle(&b, ray_origin, ray, min_dist),
+                nearest_triangle(a, ray_origin, ray, min_dist),
+                nearest_triangle(b, ray_origin, ray, min_dist),
             ) {
                 (None, None) => None,
                 (None, Some(b)) => Some(b),
@@ -92,7 +96,7 @@ fn nearest_triangle(
                 }
             }
         }
-        bvh::Value::Leaf(triangle) => {
+        BvhChild::Leaf(triangle) => {
             // (a, b, c) is the normal vector of the triangle's plane:  n = (t[1]-t[0]) x (t[2]-t[0])
             // Triangle plane:  ax + by + cz = d
             //     (a, b, c) = n.xyz
