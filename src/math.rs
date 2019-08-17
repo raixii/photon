@@ -46,6 +46,11 @@ impl Vec3 {
     }
 
     #[inline(always)]
+    pub fn sqlen(self) -> f32 {
+        vecmath::vec3_square_len(self.0)
+    }
+
+    #[inline(always)]
     pub fn x(self) -> f32 {
         self.0[0]
     }

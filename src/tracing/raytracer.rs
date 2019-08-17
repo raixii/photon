@@ -44,27 +44,42 @@ fn nearest_triangle(
     // These two equations describe all lambda for which the ray is inside an AABB:
     //     aabb_min <= ray_origin + lambda * ray
     //     ray_origin + lambda * ray <= aabb_max
-    // This can be rearranged to
+    // This can be rearranged to (rax > 0)
     //     (aabb_min.x - ray_origin.x) / ray.x <= lambda
+    //     (aabb_min.y - ray_origin.y) / ray.y <= lambda
+    //     (aabb_min.z - ray_origin.z) / ray.z <= lambda
     //     lambda <= (aabb_max.x - ray_origin.x) / ray.x
-    // for x, y and z.
+    //     lambda <= (aabb_max.y - ray_origin.y) / ray.y
+    //     lambda <= (aabb_max.y - ray_origin.y) / ray.y
+    // (rax < 0)
+    //     (aabb_min.x - ray_origin.x) / ray.x >= lambda
+    //     (aabb_min.y - ray_origin.y) / ray.y >= lambda
+    //     (aabb_min.z - ray_origin.z) / ray.z >= lambda
+    //     lambda >= (aabb_max.x - ray_origin.x) / ray.x
+    //     lambda >= (aabb_max.y - ray_origin.y) / ray.y
+    //     lambda >= (aabb_max.y - ray_origin.y) / ray.y
+    // (ray = 0)
+    //     aabb_min.x - ray_origin.x <= 0
+    //     aabb_min.y - ray_origin.y <= 0
+    //     aabb_min.z - ray_origin.z <= 0
+    //     aabb_max.x - ray_origin.x >= 0
+    //     aabb_max.y - ray_origin.y >= 0
+    //     aabb_max.z - ray_origin.z >= 0
+    let mut lambda_min = std::f32::NEG_INFINITY;
+    let mut lambda_max = std::f32::INFINITY;
     for i in 0..3 {
         if ray.0[i] > 0.0 {
-            let lambda_min = (bvh.aabb_min().0[i] - ray_origin.0[i]) / ray.0[i];
-            let lambda_max = (bvh.aabb_max().0[i] - ray_origin.0[i]) / ray.0[i];
-            if lambda_max < lambda_min {
-                return None;
-            }
+            lambda_min = lambda_min.max((bvh.aabb_min().0[i] - ray_origin.0[i]) / ray.0[i]);
+            lambda_max = lambda_max.min((bvh.aabb_max().0[i] - ray_origin.0[i]) / ray.0[i]);
         } else if ray.0[i] < 0.0 {
-            let lambda_max = (bvh.aabb_min().0[i] - ray_origin.0[i]) / ray.0[i];
-            let lambda_min = (bvh.aabb_max().0[i] - ray_origin.0[i]) / ray.0[i];
-            if lambda_max < lambda_min {
-                return None;
-            }
-        } else if bvh.aabb_min().0[i] > ray_origin.0[i] || ray_origin.0[i] > bvh.aabb_max().0[i] {
-            // ray.0[i] == 0.0
-            return None;
+            lambda_max = lambda_max.min((bvh.aabb_min().0[i] - ray_origin.0[i]) / ray.0[i]);
+            lambda_min = lambda_min.max((bvh.aabb_max().0[i] - ray_origin.0[i]) / ray.0[i]);
+        } else {
+            // We ignore false positive here
         }
+    }
+    if lambda_max < lambda_min {
+        return None;
     }
 
     match bvh.value() {
