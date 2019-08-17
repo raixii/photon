@@ -1,18 +1,26 @@
 use crate::bvh::{BvhChild, BvhNode};
 use crate::math::{AlmostEq, Vec3};
 use crate::scene::{Camera, Scene, Triangle};
+use std::f32::{INFINITY, NEG_INFINITY};
 
 pub fn raytrace(scene: &Scene, x: f32, y: f32, width: f32, height: f32) -> Option<Vec3> {
     let ray = calc_ray(&scene.camera, x, y, width, height);
-    let triangle = nearest_triangle(
-        scene.triangles_bvh.as_ref().unwrap().root(),
-        scene.camera.position,
-        ray,
-        1.0,
-    );
-    if let Some((triangle, _)) = triangle {
-        let i = scene.triangles.iter().position(|t| t == triangle).unwrap();
-        Some(Vec3([1.0 / (scene.triangles.len() as f32) * (i as f32), 0.0, 0.0]))
+    let bvh = scene.triangles_bvh.as_ref().unwrap().root();
+    if let Some(shoot_result) = shoot_ray(bvh, scene.camera.position, ray, 1.0, INFINITY) {
+        let mut result = Vec3([0.0; 3]);
+        for point_light in &scene.point_lights {
+            let ray_to_light = point_light.position - shoot_result.hit_pos;
+            let cos_n_ray = shoot_result.triangle.a.normal.dot(ray_to_light.normalize());
+            if cos_n_ray <= 0.0 {
+                continue;
+            }
+            let light_shoot_result = shoot_ray(bvh, shoot_result.hit_pos, ray_to_light, 0.0, 1.0);
+            if light_shoot_result.is_some() {
+                continue;
+            }
+            result = result + Vec3([0.8; 3]) * cos_n_ray;
+        }
+        Some(result)
     } else {
         None
     }
@@ -31,12 +39,20 @@ fn calc_ray(camera: &Camera, x: f32, y: f32, width: f32, height: f32) -> Vec3 {
     point_on_plane - camera.position
 }
 
-fn nearest_triangle(
+struct RayShootResult<'a> {
+    lambda: f32,
+    triangle: &'a Triangle,
+    barycentric_coords: Vec3,
+    hit_pos: Vec3,
+}
+
+fn shoot_ray(
     bvh: BvhNode<Triangle>,
     ray_origin: Vec3,
     ray: Vec3,
     min_dist: f32,
-) -> Option<(&Triangle, f32)> {
+    max_dist: f32,
+) -> Option<RayShootResult> {
     // These two equations describe all lambda for which the ray is inside an AABB:
     //     aabb_min <= ray_origin + lambda * ray
     //     ray_origin + lambda * ray <= aabb_max
@@ -61,8 +77,8 @@ fn nearest_triangle(
     //     aabb_max.x - ray_origin.x >= 0
     //     aabb_max.y - ray_origin.y >= 0
     //     aabb_max.z - ray_origin.z >= 0
-    let mut lambda_min = std::f32::NEG_INFINITY;
-    let mut lambda_max = std::f32::INFINITY;
+    let mut lambda_min = NEG_INFINITY;
+    let mut lambda_max = INFINITY;
     for i in 0..3 {
         if ray.0[i] > 0.0 {
             lambda_min = lambda_min.max((bvh.aabb_min().0[i] - ray_origin.0[i]) / ray.0[i]);
@@ -74,24 +90,24 @@ fn nearest_triangle(
             // We ignore false positive here
         }
     }
-    if lambda_max < lambda_min {
+    if lambda_max < lambda_min || lambda_max > max_dist || lambda_min < min_dist {
         return None;
     }
 
     match bvh.value() {
         BvhChild::Nodes(a, b) => {
             match (
-                nearest_triangle(a, ray_origin, ray, min_dist),
-                nearest_triangle(b, ray_origin, ray, min_dist),
+                shoot_ray(a, ray_origin, ray, min_dist, max_dist),
+                shoot_ray(b, ray_origin, ray, min_dist, max_dist),
             ) {
                 (None, None) => None,
                 (None, Some(b)) => Some(b),
                 (Some(a), None) => Some(a),
-                (Some((a, lambda_a)), Some((b, lambda_b))) => {
-                    if lambda_a < lambda_b {
-                        Some((a, lambda_a))
+                (Some(a), Some(b)) => {
+                    if a.lambda < b.lambda {
+                        Some(a)
                     } else {
-                        Some((b, lambda_b))
+                        Some(b)
                     }
                 }
             }
@@ -115,7 +131,7 @@ fn nearest_triangle(
             //     dot([a, b, c], ray_origin) + lambda * dot([a, b, c], ray) = d
             //     lambda = (d - dot([a, b, c], ray_origin)) / dot([a, b, c], ray)
             let lambda = (d - Vec3([a, b, c]).dot(ray_origin)) / Vec3([a, b, c]).dot(ray);
-            if !lambda.is_finite() || lambda < min_dist {
+            if !lambda.is_finite() || lambda < min_dist || lambda > max_dist {
                 return None;
             }
             let intersection = ray_origin + lambda * ray;
@@ -138,7 +154,12 @@ fn nearest_triangle(
                 return None;
             }
 
-            Some((triangle, lambda))
+            Some(RayShootResult {
+                lambda,
+                triangle,
+                barycentric_coords: Vec3([alpha, beta, gamma]),
+                hit_pos: intersection,
+            })
         }
     }
 }

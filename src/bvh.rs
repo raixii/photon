@@ -32,11 +32,13 @@ pub struct Bvh<T: HasAABB + Debug + Clone> {
     nodes: Vec<Node<T>>,
 }
 
+#[derive(Copy, Clone)]
 pub struct BvhNode<'a, T: HasAABB + Debug + Clone> {
     bvh: &'a Bvh<T>,
     index: usize,
 }
 
+#[derive(Copy, Clone)]
 pub enum BvhChild<'a, T: HasAABB + Debug + Clone> {
     Nodes(BvhNode<'a, T>, BvhNode<'a, T>),
     Leaf(&'a T),
