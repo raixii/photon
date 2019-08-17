@@ -1,5 +1,5 @@
 use std::fmt::{Debug, Formatter};
-use std::ops::{Add, Mul, Neg, Sub};
+use std::ops::{Add, AddAssign, DivAssign, Mul, Neg, Sub};
 
 #[derive(Copy, Clone, PartialEq)]
 pub struct Vec3(pub vecmath::Vector3<f32>);
@@ -114,6 +114,22 @@ impl Sub<Vec3> for Vec3 {
     #[inline(always)]
     fn sub(self, rhs: Vec3) -> Vec3 {
         Vec3(vecmath::vec3_sub(self.0, rhs.0))
+    }
+}
+
+impl AddAssign<Vec3> for Vec3 {
+    #[inline(always)]
+    fn add_assign(&mut self, rhs: Vec3) {
+        self.0 = vecmath::vec3_add(self.0, rhs.0);
+    }
+}
+
+impl DivAssign<f32> for Vec3 {
+    #[inline(always)]
+    fn div_assign(&mut self, rhs: f32) {
+        self.0[0] /= rhs;
+        self.0[1] /= rhs;
+        self.0[2] /= rhs;
     }
 }
 

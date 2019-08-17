@@ -9,16 +9,18 @@ pub fn raytrace(scene: &Scene, x: f32, y: f32, width: f32, height: f32) -> Optio
     if let Some(shoot_result) = shoot_ray(bvh, scene.camera.position, ray, 1.0, INFINITY) {
         let mut result = Vec3([0.0; 3]);
         for point_light in &scene.point_lights {
-            let ray_to_light = point_light.position - shoot_result.hit_pos;
-            let cos_n_ray = shoot_result.triangle.a.normal.dot(ray_to_light.normalize());
+            let mut ray_to_light = point_light.position - shoot_result.hit_pos;
+            let dist_to_light = ray_to_light.len();
+            ray_to_light /= dist_to_light;
+            let cos_n_ray = shoot_result.triangle.a.normal.dot(ray_to_light);
             if cos_n_ray <= 0.0 {
                 continue;
             }
-            let light_shoot_result = shoot_ray(bvh, shoot_result.hit_pos, ray_to_light, 0.0, 1.0);
+            let light_shoot_result = shoot_ray(bvh, shoot_result.hit_pos, ray_to_light, EPS, 1.0);
             if light_shoot_result.is_some() {
                 continue;
             }
-            result = result + Vec3([0.8; 3]) * cos_n_ray;
+            result += Vec3([0.8; 3]) * cos_n_ray;
         }
         Some(result)
     } else {
