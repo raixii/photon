@@ -6,11 +6,7 @@ pub struct Vec3(pub vecmath::Vector3<f32>);
 
 impl Debug for Vec3 {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-        write!(
-            f,
-            "[{:5.2}, {:5.2}, {:5.2}]",
-            self.0[0], self.0[1], self.0[2]
-        )
+        write!(f, "[{:5.2}, {:5.2}, {:5.2}]", self.0[0], self.0[1], self.0[2])
     }
 }
 
@@ -67,20 +63,12 @@ impl Vec3 {
 
     #[inline(always)]
     pub fn min(self, other: Vec3) -> Vec3 {
-        Vec3([
-            self.0[0].min(other.0[0]),
-            self.0[1].min(other.0[1]),
-            self.0[2].min(other.0[2]),
-        ])
+        Vec3([self.0[0].min(other.0[0]), self.0[1].min(other.0[1]), self.0[2].min(other.0[2])])
     }
 
     #[inline(always)]
     pub fn max(self, other: Vec3) -> Vec3 {
-        Vec3([
-            self.0[0].max(other.0[0]),
-            self.0[1].max(other.0[1]),
-            self.0[2].max(other.0[2]),
-        ])
+        Vec3([self.0[0].max(other.0[0]), self.0[1].max(other.0[1]), self.0[2].max(other.0[2])])
     }
 }
 
@@ -141,11 +129,7 @@ impl Vec4 {
 
 impl Debug for Vec4 {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-        write!(
-            f,
-            "[{:5.2}, {:5.2}, {:5.2}, {:5.2}]",
-            self.0[0], self.0[1], self.0[2], self.0[3]
-        )
+        write!(f, "[{:5.2}, {:5.2}, {:5.2}, {:5.2}]", self.0[0], self.0[1], self.0[2], self.0[3])
     }
 }
 

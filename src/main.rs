@@ -19,6 +19,8 @@ struct ThreadData {
     pub scene: Scene,
     pub pixel_at: atomic::AtomicUsize,
     pub want_quit: atomic::AtomicBool,
+    pub max_thread_time: atomic::AtomicU64,
+    pub running_threads: atomic::AtomicUsize,
 }
 
 struct ErrorMessage(String);
@@ -76,10 +78,7 @@ fn main() -> Result<(), ErrorMessage> {
         let collada_xml = String::from_utf8_lossy(&buffer);
         let mut scene = collada::read(&collada_xml);
         let end_time = time::Instant::now();
-        eprintln!(
-            "Parsing COLLADA: {} ms",
-            (end_time - start_time).as_millis()
-        );
+        eprintln!("Parsing COLLADA: {} ms", (end_time - start_time).as_millis());
 
         let start_time = time::Instant::now();
         let bvh = bvh::build(&scene.triangles);
@@ -95,16 +94,17 @@ fn main() -> Result<(), ErrorMessage> {
         scene,
         pixel_at: atomic::AtomicUsize::new(0),
         want_quit: atomic::AtomicBool::new(false),
+        max_thread_time: atomic::AtomicU64::new(0),
+        running_threads: atomic::AtomicUsize::new(thread_count),
     });
     let join_handles: Vec<_> = (0..thread_count)
         .map(|_| {
             let my_thread_data = Arc::clone(&thread_data);
             let my_sender = sender.clone();
             thread::spawn(move || {
+                let start_time = time::Instant::now();
                 while !my_thread_data.want_quit.load(atomic::Ordering::Relaxed) {
-                    let my_pixel = my_thread_data
-                        .pixel_at
-                        .fetch_add(1, atomic::Ordering::Relaxed);
+                    let my_pixel = my_thread_data.pixel_at.fetch_add(1, atomic::Ordering::Relaxed);
                     let (my_x, my_y) = (my_pixel % window_w, my_pixel / window_w);
                     if my_y >= window_h {
                         break;
@@ -120,6 +120,23 @@ fn main() -> Result<(), ErrorMessage> {
                         my_sender.send((my_x, my_y, color)).unwrap();
                     }
                 }
+                let end_time = time::Instant::now();
+
+                let mut stored_time =
+                    my_thread_data.max_thread_time.load(atomic::Ordering::Relaxed);
+                loop {
+                    match my_thread_data.max_thread_time.compare_exchange_weak(
+                        stored_time,
+                        stored_time.max((end_time - start_time).as_millis() as u64),
+                        atomic::Ordering::Relaxed,
+                        atomic::Ordering::Relaxed,
+                    ) {
+                        Ok(_) => break,
+                        Err(x) => stored_time = x,
+                    }
+                }
+
+                my_thread_data.running_threads.fetch_sub(1, atomic::Ordering::Relaxed);
             })
         })
         .collect();
@@ -127,25 +144,29 @@ fn main() -> Result<(), ErrorMessage> {
     let mut buffer = vec![0; window_w * window_h];
     for x in 0..window_w {
         for y in 0..window_h {
-            buffer[y * window_w + x] = if (x / 32) % 2 == (y / 32) % 2 {
-                0xFF_FF_FF
-            } else {
-                0xEE_EE_EE
-            }
+            buffer[y * window_w + x] =
+                if (x / 32) % 2 == (y / 32) % 2 { 0xFF_FF_FF } else { 0xEE_EE_EE }
         }
     }
     let mut window = Window::new("Photon", window_w, window_h, WindowOptions::default())
         .map_err(|_| "Cannot open the window.")?;
+    let mut printed_time = false;
     while window.is_open() {
         for (x, y, color) in receiver.try_iter() {
             buffer[y * window_w + x] = (((color.x() * 255.0) as u32) << 16)
                 | (((color.y() * 255.0) as u32) << 8)
                 | ((color.z() * 255.0) as u32);
         }
-        window
-            .update_with_buffer(&buffer)
-            .map_err(|_| "Cannot update the window.")?;
+        window.update_with_buffer(&buffer).map_err(|_| "Cannot update the window.")?;
         thread::sleep(time::Duration::from_millis(250));
+
+        if !printed_time && thread_data.running_threads.load(atomic::Ordering::Relaxed) == 0 {
+            eprintln!(
+                "Raytracing: {} ms",
+                thread_data.max_thread_time.load(atomic::Ordering::Relaxed)
+            );
+            printed_time = true;
+        }
     }
 
     thread_data.want_quit.store(true, atomic::Ordering::Relaxed);

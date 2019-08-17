@@ -14,11 +14,8 @@ pub fn read(xml: &str) -> Scene {
     let doc = package.as_document();
     let root = Node::Root(doc.root());
 
-    let scene_instance_url = evaluate_xpath_attribute(
-        root,
-        "/c:COLLADA/c:scene/c:instance_visual_scene/@url",
-        &context,
-    );
+    let scene_instance_url =
+        evaluate_xpath_attribute(root, "/c:COLLADA/c:scene/c:instance_visual_scene/@url", &context);
     let visual_scene = get_by_url(&doc, scene_instance_url, &context);
 
     let camera_element = evaluate_xpath_element(
@@ -36,15 +33,9 @@ pub fn read(xml: &str) -> Scene {
 
     let camera_transform = get_transform_of_node(camera_element, &context);
     let camera_position = (camera_transform * Vec4([0.0, 0.0, 0.0, 1.0])).xyz();
-    let camera_look = (camera_transform * Vec4([0.0, 0.0, -1.0, 0.0]))
-        .xyz()
-        .normalize();
-    let camera_up = (camera_transform * Vec4([0.0, 1.0, 0.0, 0.0]))
-        .xyz()
-        .normalize();
-    let camera_left = (camera_transform * Vec4([-1.0, 0.0, 0.0, 0.0]))
-        .xyz()
-        .normalize();
+    let camera_look = (camera_transform * Vec4([0.0, 0.0, -1.0, 0.0])).xyz().normalize();
+    let camera_up = (camera_transform * Vec4([0.0, 1.0, 0.0, 0.0])).xyz().normalize();
+    let camera_left = (camera_transform * Vec4([-1.0, 0.0, 0.0, 0.0])).xyz().normalize();
     if !(camera_look.dot(camera_up).almost_zero()
         && camera_look.dot(camera_left).almost_zero()
         && camera_left.dot(camera_up).almost_zero())
@@ -109,10 +100,8 @@ pub fn read(xml: &str) -> Scene {
                 "./c:technique_common/c:point/c:color",
                 &context,
             ));
-            let rgb: Vec<f32> = color
-                .split_whitespace()
-                .map(|c| FromStr::from_str(c).unwrap())
-                .collect();
+            let rgb: Vec<f32> =
+                color.split_whitespace().map(|c| FromStr::from_str(c).unwrap()).collect();
             Vec3([rgb[0], rgb[1], rgb[2]])
         };
 
@@ -135,13 +124,7 @@ pub fn read(xml: &str) -> Scene {
         )))
         .unwrap();
 
-        point_lights.push(PointLight {
-            position,
-            color,
-            a,
-            b,
-            c,
-        });
+        point_lights.push(PointLight { position, color, a, b, c });
     }
 
     // Import Objects
@@ -170,11 +153,8 @@ pub fn read(xml: &str) -> Scene {
             "./c:mesh/c:triangles/c:input[@semantic=\"NORMAL\"]",
             &context,
         );
-        let vertices = get_by_url(
-            &doc,
-            vertex_input.attribute("source").unwrap().value(),
-            &context,
-        );
+        let vertices =
+            get_by_url(&doc, vertex_input.attribute("source").unwrap().value(), &context);
         let position_source_url = evaluate_xpath_attribute(
             Node::Element(vertices),
             "./c:input[@semantic=\"POSITION\"]/@source",
@@ -184,11 +164,7 @@ pub fn read(xml: &str) -> Scene {
         let positions =
             get_vec3s_of_source(get_by_url(&doc, position_source_url, &context), &context);
         let normals = get_vec3s_of_source(
-            get_by_url(
-                &doc,
-                normal_input.attribute("source").unwrap().value(),
-                &context,
-            ),
+            get_by_url(&doc, normal_input.attribute("source").unwrap().value(), &context),
             &context,
         );
 
@@ -213,18 +189,9 @@ pub fn read(xml: &str) -> Scene {
         .collect();
         let modulo = indices.len() / (count * 3);
         let mut triangle = Triangle {
-            a: Vertex {
-                normal: Vec3([0.0; 3]),
-                position: Vec3([0.0; 3]),
-            },
-            b: Vertex {
-                normal: Vec3([0.0; 3]),
-                position: Vec3([0.0; 3]),
-            },
-            c: Vertex {
-                normal: Vec3([0.0; 3]),
-                position: Vec3([0.0; 3]),
-            },
+            a: Vertex { normal: Vec3([0.0; 3]), position: Vec3([0.0; 3]) },
+            b: Vertex { normal: Vec3([0.0; 3]), position: Vec3([0.0; 3]) },
+            c: Vertex { normal: Vec3([0.0; 3]), position: Vec3([0.0; 3]) },
         };
         for (i, &index) in indices.iter().enumerate() {
             let vertex_index = (i / modulo) % 3;
@@ -242,20 +209,14 @@ pub fn read(xml: &str) -> Scene {
             if offset == position_offset {
                 vertex.position = (object_transform * positions[index].xyz1()).xyz();
             } else if offset == normal_offset {
-                vertex.normal = (object_transform.inv().transpose() * normals[index].xyz0())
-                    .xyz()
-                    .normalize();
+                vertex.normal =
+                    (object_transform.inv().transpose() * normals[index].xyz0()).xyz().normalize();
             }
         }
         triangles.push(triangle);
     }
 
-    Scene {
-        camera,
-        triangles,
-        point_lights,
-        triangles_bvh: None,
-    }
+    Scene { camera, triangles, point_lights, triangles_bvh: None }
 }
 
 fn evaluate_xpath_attribute<'a>(node: Node<'a>, xpath: &str, context: &'a Context) -> &'a str {
@@ -332,10 +293,7 @@ fn get_transform_of_node(node: Element, context: &Context) -> Mat4 {
         "./c:matrix[@sid=\"transform\"]",
         context,
     ));
-    let f: Vec<_> = matrix_str
-        .split_whitespace()
-        .map(|s| FromStr::from_str(s).unwrap())
-        .collect();
+    let f: Vec<_> = matrix_str.split_whitespace().map(|s| FromStr::from_str(s).unwrap()).collect();
     Mat4([
         [f[0], f[4], f[8], f[12]],
         [f[1], f[5], f[9], f[13]],
