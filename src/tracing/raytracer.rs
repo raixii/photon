@@ -16,7 +16,8 @@ pub fn raytrace(scene: &Scene, x: f32, y: f32, width: f32, height: f32) -> Optio
             if cos_n_ray <= 0.0 {
                 continue;
             }
-            let light_shoot_result = shoot_ray(bvh, shoot_result.hit_pos, ray_to_light, EPS, 1.0);
+            let light_shoot_result =
+                shoot_ray(bvh, shoot_result.hit_pos, ray_to_light, EPS, dist_to_light);
             if light_shoot_result.is_some() {
                 continue;
             }
