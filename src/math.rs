@@ -197,3 +197,22 @@ impl Mat4 {
         Mat4(vecmath::mat4_transposed(self.0))
     }
 }
+
+pub const EPS: f32 = 1e-5;
+
+pub trait AlmostEq {
+    fn almost_eq(self, rhs: Self) -> bool;
+    fn almost_zero(self) -> bool;
+}
+
+impl AlmostEq for f32 {
+    #[inline(always)]
+    fn almost_eq(self, rhs: f32) -> bool {
+        (self - rhs).abs() < EPS
+    }
+
+    #[inline(always)]
+    fn almost_zero(self) -> bool {
+        self.abs() < EPS
+    }
+}

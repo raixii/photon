@@ -1,4 +1,4 @@
-use super::math::Vec3;
+use crate::math::Vec3;
 
 #[derive(Debug)]
 pub struct Scene {

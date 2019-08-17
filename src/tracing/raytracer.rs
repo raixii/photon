@@ -1,4 +1,4 @@
-use crate::math::Vec3;
+use crate::math::{AlmostEq, Vec3};
 use crate::scene::{Camera, Scene, Triangle};
 
 pub fn raytrace(scene: &Scene, x: f32, y: f32, width: f32, height: f32) -> Option<Vec3> {
@@ -70,7 +70,7 @@ fn nearest_triangle(triangles: &[Triangle], camera_pos: Vec3, ray: Vec3) -> Opti
         let gamma = area_triangle_abi / area_triangle;
         let beta = area_triangle_aci / area_triangle;
         let alpha = area_triangle_bci / area_triangle;
-        if (alpha + beta + gamma - 1.0).abs() > 0.0001 {
+        if !(alpha + beta + gamma).almost_eq(1.0) {
             continue;
         }
 
