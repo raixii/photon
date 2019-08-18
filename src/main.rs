@@ -71,7 +71,8 @@ fn main() -> Result<(), ErrorMessage> {
         let collada_xml = String::from_utf8(buffer).map_err(|e| format!("{}", e))?;
         let mut scene = Collada { xml: collada_xml }
             .import()
-            .map_err(|e| format!("Error during Collada import: {}", e))?;
+            .map_err(|e| format!("Error during Collada import: {}", e))
+            .unwrap();
         let end_time = time::Instant::now();
         eprintln!("Parsing COLLADA: {} ms", (end_time - start_time).as_millis());
 

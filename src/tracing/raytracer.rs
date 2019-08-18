@@ -39,7 +39,9 @@ fn handle_ray(scene: &Scene, ray: Vec3) -> Option<Vec3> {
             let attenuation = point_light.a * attenuation_dist * attenuation_dist
                 + point_light.b * attenuation_dist
                 + point_light.c;
-            result += Vec3([0.8; 3]) * point_light.color * (cos_n_ray / attenuation);
+            result += scene.material_of_triangle(shoot_result.triangle).diffuse
+                * point_light.color
+                * (cos_n_ray / attenuation);
         }
         Some(result)
     } else {
