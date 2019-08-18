@@ -7,6 +7,13 @@ pub struct Scene {
     pub triangles: Vec<Triangle>,
     pub point_lights: Vec<PointLight>,
     pub triangles_bvh: Option<Bvh<Triangle>>,
+    pub materials: Vec<Material>,
+}
+
+impl Scene {
+    pub fn material_of_triangle(&self, triangle: &Triangle) -> &Material {
+        &self.materials[triangle.material]
+    }
 }
 
 #[derive(Debug)]
@@ -34,6 +41,13 @@ pub struct Triangle {
     pub a: Vertex,
     pub b: Vertex,
     pub c: Vertex,
+    material: usize,
+}
+
+impl Triangle {
+    pub fn new(a: Vertex, b: Vertex, c: Vertex, material: usize) -> Triangle {
+        Triangle { a, b, c, material }
+    }
 }
 
 impl HasAABB for Triangle {
@@ -48,4 +62,16 @@ impl HasAABB for Triangle {
 pub struct Vertex {
     pub position: Vec3,
     pub normal: Vec3,
+}
+
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub struct Material {
+    pub emission: Vec3,
+    pub diffuse: Vec3,
+    pub specular: Vec3,
+    //
+    // roughness - kommt evtl mit Blender 2.81 aus dem collada
+    // ad later for transparency
+    // alpha: f64,
+    // refraction: f64
 }

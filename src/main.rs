@@ -5,14 +5,16 @@ extern crate clap;
 
 use bvh::Bvh;
 use image_buffer::ImageBuffer;
+use import::collada::Collada;
+use import::Import;
 use std::fmt::{Debug, Formatter};
 use std::{fs, io::Read, str::FromStr, sync::atomic, sync::Arc, sync::Mutex, thread, time};
 use tracing::raytrace;
 
 mod bvh;
-mod collada;
 mod gui;
 mod image_buffer;
+mod import;
 mod math;
 mod scene;
 mod tracing;
@@ -66,8 +68,11 @@ fn main() -> Result<(), ErrorMessage> {
         infile
             .read_to_end(&mut buffer)
             .map_err(|e| format!("File {} cannot be read: {}", path, e))?;
-        let collada_xml = String::from_utf8_lossy(&buffer);
-        let mut scene = collada::read(&collada_xml);
+        let collada_xml = String::from_utf8(buffer).map_err(|e| format!("{}", e))?;
+        let mut scene = Collada { xml: collada_xml }
+            .import()
+            .map_err(|e| format!("Error during Collada import: {}", e))
+            .unwrap();
         let end_time = time::Instant::now();
         eprintln!("Parsing COLLADA: {} ms", (end_time - start_time).as_millis());
 

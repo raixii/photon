@@ -1,5 +1,6 @@
+use super::{Import, ImportError};
 use crate::math::{AlmostEq, Mat4, Vec3, Vec4};
-use crate::scene::{Camera, PointLight, Scene, Triangle, Vertex};
+use crate::scene::{Camera, Material, PointLight, Scene, Triangle, Vertex};
 use std::f64::consts::PI;
 use std::str::FromStr;
 use sxd_document::dom::{ChildOfElement, Document, Element};
@@ -7,7 +8,17 @@ use sxd_document::parser;
 use sxd_xpath::nodeset::Node;
 use sxd_xpath::{Context, Factory, Value};
 
-pub fn read(xml: &str) -> Scene {
+pub struct Collada {
+    pub xml: String,
+}
+
+impl Import for Collada {
+    fn import(&self) -> Result<Scene, ImportError> {
+        read(&self.xml)
+    }
+}
+
+fn read(xml: &str) -> Result<Scene, ImportError> {
     let mut context = Context::new();
     context.set_namespace("c", "http://www.collada.org/2005/11/COLLADASchema");
     let package = parser::parse(xml).unwrap();
@@ -127,6 +138,13 @@ pub fn read(xml: &str) -> Scene {
         point_lights.push(PointLight { position, color, a, b, c });
     }
 
+    // todo: import Materials
+    let materials = vec![Material {
+        emission: Vec3([0.0; 3]),
+        diffuse: Vec3([0.8, 0.2, 0.2]),
+        specular: Vec3([0.0; 3]),
+    }];
+
     // Import Objects
 
     let mut triangles = Vec::new();
@@ -188,11 +206,12 @@ pub fn read(xml: &str) -> Scene {
         .map(|s| FromStr::from_str(s).unwrap())
         .collect();
         let modulo = indices.len() / (count * 3);
-        let mut triangle = Triangle {
-            a: Vertex { normal: Vec3([0.0; 3]), position: Vec3([0.0; 3]) },
-            b: Vertex { normal: Vec3([0.0; 3]), position: Vec3([0.0; 3]) },
-            c: Vertex { normal: Vec3([0.0; 3]), position: Vec3([0.0; 3]) },
-        };
+        let mut triangle = Triangle::new(
+            Vertex { normal: Vec3([0.0; 3]), position: Vec3([0.0; 3]) },
+            Vertex { normal: Vec3([0.0; 3]), position: Vec3([0.0; 3]) },
+            Vertex { normal: Vec3([0.0; 3]), position: Vec3([0.0; 3]) },
+            0,
+        ); // todo pass actual material
         for (i, &index) in indices.iter().enumerate() {
             let vertex_index = (i / modulo) % 3;
             let offset = i % modulo;
@@ -216,7 +235,7 @@ pub fn read(xml: &str) -> Scene {
         triangles.push(triangle);
     }
 
-    Scene { camera, triangles, point_lights, triangles_bvh: None }
+    Ok(Scene { camera, triangles, point_lights, triangles_bvh: None, materials })
 }
 
 fn evaluate_xpath_attribute<'a>(node: Node<'a>, xpath: &str, context: &'a Context) -> &'a str {
