@@ -40,13 +40,14 @@ def main():
             mesh = object.to_mesh()
             mesh.calc_loop_triangles()
             print(f"\t{len(mesh.loop_triangles)} triangles")
+            uv_layer = mesh.uv_layers.active.data
             triangles = []
             for t in mesh.loop_triangles:
                 for v in t.vertices:
-                    v = mesh.vertices[v]
                     triangles.append({
-                        "p": convert_vector(v.co),
-                        "n": convert_vector(v.normal),
+                        "p": convert_vector(mesh.vertices[v].co),
+                        "n": convert_vector(mesh.vertices[v].normal),
+                        "t": convert_vector(uv_layer[v].uv)
                     })
             object.to_mesh_clear()
             out_object["triangles"] = triangles
