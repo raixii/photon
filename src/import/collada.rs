@@ -1,3 +1,4 @@
+use super::{Import, ImportError};
 use crate::math::{AlmostEq, Mat4, Vec3, Vec4};
 use crate::scene::{Camera, PointLight, Scene, Triangle, Vertex};
 use std::f64::consts::PI;
@@ -7,7 +8,17 @@ use sxd_document::parser;
 use sxd_xpath::nodeset::Node;
 use sxd_xpath::{Context, Factory, Value};
 
-pub fn read(xml: &str) -> Scene {
+pub struct Collada {
+    pub xml: String,
+}
+
+impl Import for Collada {
+    fn import(&self) -> Result<Scene, ImportError> {
+        read(&self.xml)
+    }
+}
+
+fn read(xml: &str) -> Result<Scene, ImportError> {
     let mut context = Context::new();
     context.set_namespace("c", "http://www.collada.org/2005/11/COLLADASchema");
     let package = parser::parse(xml).unwrap();
@@ -216,7 +227,7 @@ pub fn read(xml: &str) -> Scene {
         triangles.push(triangle);
     }
 
-    Scene { camera, triangles, point_lights, triangles_bvh: None }
+    Ok(Scene { camera, triangles, point_lights, triangles_bvh: None })
 }
 
 fn evaluate_xpath_attribute<'a>(node: Node<'a>, xpath: &str, context: &'a Context) -> &'a str {

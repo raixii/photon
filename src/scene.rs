@@ -49,3 +49,15 @@ pub struct Vertex {
     pub position: Vec3,
     pub normal: Vec3,
 }
+
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub struct Material {
+    emission: Vec3,
+    diffuse: Vec3,
+    specular: f64,
+    //
+    // roughness - kommt evtl mit Blender 2.81 aus dem collada
+    // ad later for transparency
+    // alpha: f64,
+    // refraction: f64
+}
