@@ -155,6 +155,7 @@ fn main() -> Result<(), ErrorMessage> {
     while window.is_open() {
         for (x, y, mut color) in receiver.try_iter() {
             for i in 0..3 {
+                /*
                 color.0[i] *= 1.0 / 800.0; // exposure
                                            //color.0[i] = color.0[i] / (1.0 + color.0[i]); // tone-mapping
                                            //  color.0[i] = color.0[i].min(1.0);
@@ -163,6 +164,10 @@ fn main() -> Result<(), ErrorMessage> {
                     / (color.0[i] * (6.2 * color.0[i] + 1.7) + 0.06);
                 //   color.0[i] = color.0[i].powf(1.0 / 2.2); // gamma correction
                 color.0[i] *= 255.0; // machine numbers
+                // color.0[i] = (color.0[i] / (1.0 + color.0[i])).powf(2.2);
+                */
+                color.0[i] *= 255.0; // machine numbers
+                color.0[i] /= 1000.0;
             }
             buffer[y * window_w + x] =
                 ((color.x() as u32) << 16) | ((color.y() as u32) << 8) | (color.z() as u32);
