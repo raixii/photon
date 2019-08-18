@@ -1,5 +1,5 @@
 use std::fmt::{Debug, Formatter};
-use std::ops::{Add, AddAssign, DivAssign, Mul, Neg, Sub};
+use std::ops::{Add, AddAssign, Div, DivAssign, Mul, Neg, Sub};
 
 #[derive(Copy, Clone, PartialEq)]
 pub struct Vec3(pub vecmath::Vector3<f64>);
@@ -139,6 +139,14 @@ impl DivAssign<f64> for Vec3 {
         self.0[0] /= rhs;
         self.0[1] /= rhs;
         self.0[2] /= rhs;
+    }
+}
+
+impl Div<f64> for Vec3 {
+    type Output = Vec3;
+    #[inline(always)]
+    fn div(self, rhs: f64) -> Vec3 {
+        Vec3([self.0[0] / rhs, self.0[1] / rhs, self.0[2] / rhs])
     }
 }
 

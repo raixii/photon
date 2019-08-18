@@ -155,7 +155,8 @@ fn main() -> Result<(), ErrorMessage> {
     while window.is_open() {
         for (x, y, mut color) in receiver.try_iter() {
             for i in 0..3 {
-                color.0[i] = (color.0[i] / (1.0 + color.0[i])).powf(2.2);
+                // color.0[i] = (color.0[i] / (1.0 + color.0[i])).powf(2.2);
+                color.0[i] /= 1000.0;
             }
             buffer[y * window_w + x] = (((color.x() * 255.0) as u32) << 16)
                 | (((color.y() * 255.0) as u32) << 8)
