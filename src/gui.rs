@@ -48,10 +48,12 @@ pub fn main_loop(
         if buffer_changed {
             for (i, color) in float_buffer.iter().enumerate() {
                 let mut c = color.xyz();
-                let reinhard = c.x().max(c.y()).max(c.z());
                 for i in 0..3 {
                     c.0[i] *= 2.0f64.powf(exposure); // exposure
-                    c.0[i] /= 1.0 + reinhard; // tone mapping (Reinhard)
+                }
+                let max_color = c.x().max(c.y()).max(c.z());
+                for i in 0..3 {
+                    c.0[i] /= 1.0 + max_color; // tone mapping (Reinhard)
                     c.0[i] = c.0[i].min(1.0).max(0.0); // clamp between [0; 1]
                     c.0[i] = c.0[i].powf(2.2); // gamma correction
                     c.0[i] *= 255.0; // machine numbers

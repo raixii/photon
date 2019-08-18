@@ -138,13 +138,46 @@ fn read(xml: &str) -> Result<Scene, ImportError> {
         point_lights.push(PointLight { position, color, a, b, c });
     }
 
-    // todo: import Materials
-    let materials = vec![Material {
-        emission: Vec3([0.0; 3]),
-        diffuse: Vec3([0.8, 0.2, 0.2]),
-        specular: Vec3([0.0; 3]),
-    }];
-
+    let mut materials = Vec::new();
+    let material_nodes =
+        evaluate_xpath_element_all(root, "./c:COLLADA/c:library_materials/c:material", &context);
+    let mut material_index_helpler: std::collections::HashMap<String, usize> =
+        std::collections::HashMap::new();
+    for (i, node) in material_nodes.iter().enumerate() {
+        let material_id = evaluate_xpath_attribute(Node::Element(*node), "./@id", &context);
+        let effect_id =
+            evaluate_xpath_attribute(Node::Element(*node), "./c:instance_effect/@url", &context);
+        let effect_node = get_by_url(&doc, effect_id, &context);
+        let emission = {
+            let emission_node = evaluate_xpath_element(
+                Node::Element(effect_node),
+                "./c:profile_COMMON/c:technique/c:lambert/c:emission/c:color",
+                &context,
+            );
+            let mut fs = get_text(emission_node).split_whitespace();
+            Vec3([
+                FromStr::from_str(fs.next().unwrap()).unwrap(),
+                FromStr::from_str(fs.next().unwrap()).unwrap(),
+                FromStr::from_str(fs.next().unwrap()).unwrap(),
+            ])
+        };
+        let diffuse = {
+            let node = evaluate_xpath_element(
+                Node::Element(effect_node),
+                "./c:profile_COMMON/c:technique/c:lambert/c:diffuse/c:color",
+                &context,
+            );
+            let mut fs = get_text(node).split_whitespace();
+            Vec3([
+                FromStr::from_str(fs.next().unwrap()).unwrap(),
+                FromStr::from_str(fs.next().unwrap()).unwrap(),
+                FromStr::from_str(fs.next().unwrap()).unwrap(),
+            ])
+        };
+        // todo fetch specular
+        materials.push(Material { emission, diffuse, specular: Vec3([0.0; 3]) });
+        material_index_helpler.insert(String::from(material_id), i);
+    }
     // Import Objects
 
     let mut triangles = Vec::new();
@@ -197,6 +230,12 @@ fn read(xml: &str) -> Result<Scene, ImportError> {
         ))
         .unwrap();
 
+        let material_id = evaluate_xpath_attribute(
+            Node::Element(geometry_element),
+            "./c:mesh/c:triangles/@material",
+            &context,
+        );
+
         let indices: Vec<usize> = get_text(evaluate_xpath_element(
             Node::Element(geometry_element),
             "./c:mesh/c:triangles/c:p",
@@ -210,8 +249,9 @@ fn read(xml: &str) -> Result<Scene, ImportError> {
             Vertex { normal: Vec3([0.0; 3]), position: Vec3([0.0; 3]) },
             Vertex { normal: Vec3([0.0; 3]), position: Vec3([0.0; 3]) },
             Vertex { normal: Vec3([0.0; 3]), position: Vec3([0.0; 3]) },
-            0,
-        ); // todo pass actual material
+            *material_index_helpler.get(material_id).unwrap(),
+        );
+
         for (i, &index) in indices.iter().enumerate() {
             let vertex_index = (i / modulo) % 3;
             let offset = i % modulo;
