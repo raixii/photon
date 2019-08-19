@@ -171,11 +171,7 @@ fn read(xml: &str) -> Result<Scene, ImportError> {
 
     // default material
     material_index_helpler.insert(String::from(""), 0);
-    materials.push(Material {
-        emission: Vec3([0.0; 3]),
-        diffuse: Vec3([0.8; 3]),
-        specular: Vec3([0.0; 3]),
-    });
+    materials.push(Material { emission: Vec3([0.0; 3]), color: Vec3([0.8; 3]), specular: 0.0 });
     for (i, node) in material_nodes.iter().enumerate() {
         let material_id =
             evaluate_xpath_attribute(Node::Element(*node), "./@id", &context).unwrap();
@@ -224,7 +220,7 @@ fn read(xml: &str) -> Result<Scene, ImportError> {
                 0.0
             }
         };
-        materials.push(Material { emission, diffuse, specular: Vec3([spec; 3]) });
+        materials.push(Material { emission, color: diffuse, specular: spec });
         material_index_helpler.insert(String::from(material_id), i + 1);
     }
     // Import Objects
@@ -272,9 +268,9 @@ fn read(xml: &str) -> Result<Scene, ImportError> {
             &context,
         );
 
-        let position_offset =
+        let position_offset: usize =
             FromStr::from_str(vertex_input.attribute("offset").unwrap().value()).unwrap();
-        let normal_offset =
+        let normal_offset: usize =
             FromStr::from_str(normal_input.attribute("offset").unwrap().value()).unwrap();
         let count: usize = FromStr::from_str(
             evaluate_xpath_attribute(

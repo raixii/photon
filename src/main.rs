@@ -4,9 +4,9 @@
 extern crate clap;
 
 use bvh::Bvh;
+use flate2::read::GzDecoder;
 use image_buffer::ImageBuffer;
-use import::collada::Collada;
-use import::Import;
+use import::{Blender, Collada, Import};
 use std::fmt::{Debug, Formatter};
 use std::{fs, io::Read, str::FromStr, sync::atomic, sync::Arc, sync::Mutex, thread, time};
 use tracing::raytrace;
@@ -61,6 +61,7 @@ fn main() -> Result<(), ErrorMessage> {
 
     let scene = Arc::new({
         let start_time = time::Instant::now();
+
         let path = matches.value_of("INPUT").unwrap();
         let mut infile =
             fs::File::open(path).map_err(|e| format!("File {} cannot be opened: {}", path, e))?;
@@ -68,13 +69,32 @@ fn main() -> Result<(), ErrorMessage> {
         infile
             .read_to_end(&mut buffer)
             .map_err(|e| format!("File {} cannot be read: {}", path, e))?;
-        let collada_xml = String::from_utf8(buffer).map_err(|e| format!("{}", e))?;
-        let mut scene = Collada { xml: collada_xml }
-            .import()
-            .map_err(|e| format!("Error during Collada import: {}", e))
-            .unwrap();
+
+        let mut scene = if path.ends_with(".dae") {
+            let file_text = String::from_utf8(buffer).map_err(|e| format!("{}", e))?;
+            Collada { xml: file_text }
+                .import()
+                .map_err(|e| format!("Error during Collada import: {}", e))
+        } else if path.ends_with(".blend.json") {
+            let file_text = String::from_utf8(buffer).map_err(|e| format!("{}", e))?;
+            Blender::new(&file_text, window_w, window_h)
+                .import()
+                .map_err(|e| format!("Error during Blender JSON import: {}", e))
+        } else if path.ends_with(".blend.json.gz") {
+            let mut decoder = GzDecoder::new(&buffer[..]);
+            let mut file_text = String::new();
+            decoder
+                .read_to_string(&mut file_text)
+                .map_err(|e| format!("Cannot decompress: {}", e))?;
+            Blender::new(&file_text, window_w, window_h)
+                .import()
+                .map_err(|e| format!("Error during Blender JSON (gz) import: {}", e))
+        } else {
+            Err("Unknown input format.".to_owned())
+        }?;
+
         let end_time = time::Instant::now();
-        eprintln!("Parsing COLLADA: {} ms", (end_time - start_time).as_millis());
+        eprintln!("Parsing input file: {} ms", (end_time - start_time).as_millis());
 
         let start_time = time::Instant::now();
         let bvh = Bvh::new(&scene.triangles);

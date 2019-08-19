@@ -67,8 +67,8 @@ pub struct Vertex {
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Material {
     pub emission: Vec3,
-    pub diffuse: Vec3,
-    pub specular: Vec3,
+    pub color: Vec3,
+    pub specular: f64,
     //
     // roughness - kommt evtl mit Blender 2.81 aus dem collada
     // ad later for transparency
