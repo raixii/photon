@@ -37,6 +37,8 @@ def main():
         out_object["type"] = object.type
 
         if object.type == "MESH":
+            out_object["matrix"] = convert_matrix(object.matrix_world)
+
             mesh = object.to_mesh()
             mesh.calc_loop_triangles()
             print(f"\t{len(mesh.loop_triangles)} triangles")
@@ -46,7 +48,7 @@ def main():
                 for v in t.vertices:
                     triangles.append({
                         "p": convert_vector(mesh.vertices[v].co),
-                        "n": convert_vector(mesh.vertices[v].normal),
+                        "n": convert_vector(mesh.vertices[v].normal if t.use_smooth else t.normal),
                         "t": convert_vector(uv_layer[v].uv)
                     })
             object.to_mesh_clear()
@@ -81,7 +83,7 @@ def main():
             out_object["xfov"] = object.data.angle_x
             out_object["yfov"] = object.data.angle_y
             out_object["znear"] = object.data.clip_start
-            out_object["nfar"] = object.data.clip_end
+            out_object["zfar"] = object.data.clip_end
             out_object["camera_type"] = object.data.type
 
         out_objects[object.name] = out_object
@@ -90,7 +92,7 @@ def main():
         "objects": out_objects,
     }
 
-    with open(export_path, "w", encoding="ASCII") as fp:
-        json.dump(out, fp, indent=2)
+    with open(export_path, "w", encoding="UTF-8") as fp:
+        json.dump(out, fp, check_circular=False)
 
 main()

@@ -175,7 +175,7 @@ fn read(xml: &str) -> Result<Scene, ImportError> {
             ])
         };
         // todo fetch specular
-        materials.push(Material { emission, diffuse, specular: Vec3([0.0; 3]) });
+        materials.push(Material { emission, color: diffuse, specular: 0.0 });
         material_index_helpler.insert(String::from(material_id), i);
     }
     // Import Objects
@@ -219,9 +219,9 @@ fn read(xml: &str) -> Result<Scene, ImportError> {
             &context,
         );
 
-        let position_offset =
+        let position_offset: usize =
             FromStr::from_str(vertex_input.attribute("offset").unwrap().value()).unwrap();
-        let normal_offset =
+        let normal_offset: usize =
             FromStr::from_str(normal_input.attribute("offset").unwrap().value()).unwrap();
         let count: usize = FromStr::from_str(evaluate_xpath_attribute(
             Node::Element(geometry_element),

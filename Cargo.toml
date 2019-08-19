@@ -6,10 +6,21 @@ edition = "2018"
 description = "Traces rays!"
 
 [dependencies]
-minifb = "0.12"
+# Command line
 clap = "2.33.0"
+num_cpus = "1.10.1"
+
+# GUI
+minifb = "0.12"
+
+# Output
 png = "0.15.0"
+
+# Math
+vecmath = "1.0.0"
+
+# Parsing
 sxd-xpath = "0.4.2"
 sxd-document = "0.3.2"
-vecmath = "1.0.0"
-num_cpus = "1.10.1"
+serde_json = "1.0.40"
+serde = { version = "1.0.99", features = ["derive"] }
