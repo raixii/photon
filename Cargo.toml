@@ -6,10 +6,11 @@ edition = "2018"
 description = "Traces rays!"
 
 [dependencies]
-minifb = "0.12"
 clap = "2.33.0"
 png = "0.15.0"
 sxd-xpath = "0.4.2"
 sxd-document = "0.3.2"
 vecmath = "1.0.0"
 num_cpus = "1.10.1"
+sdl2 = "0.32.2"
+
