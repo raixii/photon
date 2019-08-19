@@ -3,6 +3,7 @@ import os
 import sys
 import json
 import itertools
+import gzip
 from math import sqrt
 from mathutils import Matrix, Vector, Euler, Quaternion
 
@@ -22,7 +23,7 @@ def rename(name):
     return name.replace(" ", "_").lower()
 
 def main():
-    export_path = bpy.data.filepath + ".json"
+    export_path = bpy.data.filepath + ".json.gz"
     print("Exporting to: " + export_path)
     print()
 
@@ -92,7 +93,7 @@ def main():
         "objects": out_objects,
     }
 
-    with open(export_path, "w", encoding="UTF-8") as fp:
+    with gzip.open(export_path, "wt", encoding="UTF-8") as fp:
         json.dump(out, fp, check_circular=False)
 
 main()
