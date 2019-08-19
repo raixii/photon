@@ -33,7 +33,7 @@ struct BlenderObject {
 #[serde(tag = "type")]
 enum BlenderObjectData {
     #[serde(rename = "MESH")]
-    Mesh(BlenderMesh),
+    Mesh(Box<BlenderMesh>),
     #[serde(rename = "LIGHT")]
     Light(BlenderLight),
     #[serde(rename = "CAMERA")]
