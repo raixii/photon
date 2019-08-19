@@ -26,20 +26,23 @@ fn read(xml: &str) -> Result<Scene, ImportError> {
     let root = Node::Root(doc.root());
 
     let scene_instance_url =
-        evaluate_xpath_attribute(root, "/c:COLLADA/c:scene/c:instance_visual_scene/@url", &context);
+        evaluate_xpath_attribute(root, "/c:COLLADA/c:scene/c:instance_visual_scene/@url", &context)
+            .unwrap();
     let visual_scene = get_by_url(&doc, scene_instance_url, &context);
 
     let camera_element = evaluate_xpath_element(
         Node::Element(visual_scene),
         "./c:node/c:instance_camera/..",
         &context,
-    );
+    )
+    .unwrap();
 
     let camera_url = evaluate_xpath_attribute(
         Node::Element(camera_element),
         "./c:instance_camera/@url",
         &context,
-    );
+    )
+    .unwrap();
     let camera_specs = get_by_url(&doc, camera_url, &context);
 
     let camera_transform = get_transform_of_node(camera_element, &context);
@@ -54,23 +57,32 @@ fn read(xml: &str) -> Result<Scene, ImportError> {
         panic!("Camera is transformed without keeping the angles.");
     }
 
-    let aspect_ratio: f64 = FromStr::from_str(get_text(evaluate_xpath_element(
-        Node::Element(camera_specs),
-        "./c:optics/c:technique_common/c:perspective/c:aspect_ratio",
-        &context,
-    )))
+    let aspect_ratio: f64 = FromStr::from_str(get_text(
+        evaluate_xpath_element(
+            Node::Element(camera_specs),
+            "./c:optics/c:technique_common/c:perspective/c:aspect_ratio",
+            &context,
+        )
+        .unwrap(),
+    ))
     .unwrap();
-    let znear: f64 = FromStr::from_str(get_text(evaluate_xpath_element(
-        Node::Element(camera_specs),
-        "./c:optics/c:technique_common/c:perspective/c:znear",
-        &context,
-    )))
+    let znear: f64 = FromStr::from_str(get_text(
+        evaluate_xpath_element(
+            Node::Element(camera_specs),
+            "./c:optics/c:technique_common/c:perspective/c:znear",
+            &context,
+        )
+        .unwrap(),
+    ))
     .unwrap();
-    let fov_deg: f64 = FromStr::from_str(get_text(evaluate_xpath_element(
-        Node::Element(camera_specs),
-        "./c:optics/c:technique_common/c:perspective/c:xfov",
-        &context,
-    )))
+    let fov_deg: f64 = FromStr::from_str(get_text(
+        evaluate_xpath_element(
+            Node::Element(camera_specs),
+            "./c:optics/c:technique_common/c:perspective/c:xfov",
+            &context,
+        )
+        .unwrap(),
+    ))
     .unwrap();
     let fov = fov_deg / 180.0 * PI;
     // let alpha = (PI - fov) / 2.0;
@@ -97,7 +109,8 @@ fn read(xml: &str) -> Result<Scene, ImportError> {
     for light in point_light_nodes {
         let light_node = {
             let light_url =
-                evaluate_xpath_attribute(Node::Element(light), "./c:instance_light/@url", &context);
+                evaluate_xpath_attribute(Node::Element(light), "./c:instance_light/@url", &context)
+                    .unwrap();
             get_by_url(&doc, light_url, &context)
         };
         let position = {
@@ -106,33 +119,45 @@ fn read(xml: &str) -> Result<Scene, ImportError> {
         };
 
         let color = {
-            let color = get_text(evaluate_xpath_element(
-                Node::Element(light_node),
-                "./c:technique_common/c:point/c:color",
-                &context,
-            ));
+            let color = get_text(
+                evaluate_xpath_element(
+                    Node::Element(light_node),
+                    "./c:technique_common/c:point/c:color",
+                    &context,
+                )
+                .unwrap(),
+            );
             let rgb: Vec<f64> =
                 color.split_whitespace().map(|c| FromStr::from_str(c).unwrap()).collect();
             Vec3([rgb[0], rgb[1], rgb[2]])
         };
 
-        let a: f64 = FromStr::from_str(get_text(evaluate_xpath_element(
-            Node::Element(light_node),
-            "./c:technique_common/c:point/c:quadratic_attenuation",
-            &context,
-        )))
+        let a: f64 = FromStr::from_str(get_text(
+            evaluate_xpath_element(
+                Node::Element(light_node),
+                "./c:technique_common/c:point/c:quadratic_attenuation",
+                &context,
+            )
+            .unwrap(),
+        ))
         .unwrap();
-        let b: f64 = FromStr::from_str(get_text(evaluate_xpath_element(
-            Node::Element(light_node),
-            "./c:technique_common/c:point/c:linear_attenuation",
-            &context,
-        )))
+        let b: f64 = FromStr::from_str(get_text(
+            evaluate_xpath_element(
+                Node::Element(light_node),
+                "./c:technique_common/c:point/c:linear_attenuation",
+                &context,
+            )
+            .unwrap(),
+        ))
         .unwrap();
-        let c: f64 = FromStr::from_str(get_text(evaluate_xpath_element(
-            Node::Element(light_node),
-            "./c:technique_common/c:point/c:constant_attenuation",
-            &context,
-        )))
+        let c: f64 = FromStr::from_str(get_text(
+            evaluate_xpath_element(
+                Node::Element(light_node),
+                "./c:technique_common/c:point/c:constant_attenuation",
+                &context,
+            )
+            .unwrap(),
+        ))
         .unwrap();
 
         point_lights.push(PointLight { position, color, a, b, c });
@@ -143,17 +168,24 @@ fn read(xml: &str) -> Result<Scene, ImportError> {
         evaluate_xpath_element_all(root, "./c:COLLADA/c:library_materials/c:material", &context);
     let mut material_index_helpler: std::collections::HashMap<String, usize> =
         std::collections::HashMap::new();
+
+    // default material
+    material_index_helpler.insert(String::from(""), 0);
+    materials.push(Material { emission: Vec3([0.0; 3]), color: Vec3([0.8; 3]), specular: 0.0 });
     for (i, node) in material_nodes.iter().enumerate() {
-        let material_id = evaluate_xpath_attribute(Node::Element(*node), "./@id", &context);
+        let material_id =
+            evaluate_xpath_attribute(Node::Element(*node), "./@id", &context).unwrap();
         let effect_id =
-            evaluate_xpath_attribute(Node::Element(*node), "./c:instance_effect/@url", &context);
+            evaluate_xpath_attribute(Node::Element(*node), "./c:instance_effect/@url", &context)
+                .unwrap();
         let effect_node = get_by_url(&doc, effect_id, &context);
         let emission = {
             let emission_node = evaluate_xpath_element(
                 Node::Element(effect_node),
                 "./c:profile_COMMON/c:technique/c:lambert/c:emission/c:color",
                 &context,
-            );
+            )
+            .unwrap();
             let mut fs = get_text(emission_node).split_whitespace();
             Vec3([
                 FromStr::from_str(fs.next().unwrap()).unwrap(),
@@ -166,7 +198,8 @@ fn read(xml: &str) -> Result<Scene, ImportError> {
                 Node::Element(effect_node),
                 "./c:profile_COMMON/c:technique/c:lambert/c:diffuse/c:color",
                 &context,
-            );
+            )
+            .unwrap();
             let mut fs = get_text(node).split_whitespace();
             Vec3([
                 FromStr::from_str(fs.next().unwrap()).unwrap(),
@@ -175,8 +208,20 @@ fn read(xml: &str) -> Result<Scene, ImportError> {
             ])
         };
         // todo fetch specular
-        materials.push(Material { emission, color: diffuse, specular: 0.0 });
-        material_index_helpler.insert(String::from(material_id), i);
+        let spec = {
+            let node = evaluate_xpath_element(
+                Node::Element(effect_node),
+                "./c:profile_COMMON/c:technique/c:lambert/c:reflectivity/c:float",
+                &context,
+            );
+            if let Ok(val) = node {
+                FromStr::from_str(get_text(val)).unwrap()
+            } else {
+                0.0
+            }
+        };
+        materials.push(Material { emission, color: diffuse, specular: spec });
+        material_index_helpler.insert(String::from(material_id), i + 1);
     }
     // Import Objects
 
@@ -192,25 +237,29 @@ fn read(xml: &str) -> Result<Scene, ImportError> {
             Node::Element(object_element),
             "./c:instance_geometry/@url",
             &context,
-        );
+        )
+        .unwrap();
         let geometry_element = get_by_url(&doc, instance_geometry_url, &context);
         let vertex_input = evaluate_xpath_element(
             Node::Element(geometry_element),
             "./c:mesh/c:triangles/c:input[@semantic=\"VERTEX\"]",
             &context,
-        );
+        )
+        .unwrap();
         let normal_input = evaluate_xpath_element(
             Node::Element(geometry_element),
             "./c:mesh/c:triangles/c:input[@semantic=\"NORMAL\"]",
             &context,
-        );
+        )
+        .unwrap();
         let vertices =
             get_by_url(&doc, vertex_input.attribute("source").unwrap().value(), &context);
         let position_source_url = evaluate_xpath_attribute(
             Node::Element(vertices),
             "./c:input[@semantic=\"POSITION\"]/@source",
             &context,
-        );
+        )
+        .unwrap();
 
         let positions =
             get_vec3s_of_source(get_by_url(&doc, position_source_url, &context), &context);
@@ -223,28 +272,39 @@ fn read(xml: &str) -> Result<Scene, ImportError> {
             FromStr::from_str(vertex_input.attribute("offset").unwrap().value()).unwrap();
         let normal_offset: usize =
             FromStr::from_str(normal_input.attribute("offset").unwrap().value()).unwrap();
-        let count: usize = FromStr::from_str(evaluate_xpath_attribute(
-            Node::Element(geometry_element),
-            "./c:mesh/c:triangles/@count",
-            &context,
-        ))
+        let count: usize = FromStr::from_str(
+            evaluate_xpath_attribute(
+                Node::Element(geometry_element),
+                "./c:mesh/c:triangles/@count",
+                &context,
+            )
+            .unwrap(),
+        )
         .unwrap();
 
-        let material_id = evaluate_xpath_attribute(
+        let material_id = if let Ok(material_id) = evaluate_xpath_attribute(
             Node::Element(geometry_element),
             "./c:mesh/c:triangles/@material",
             &context,
-        );
+        ) {
+            material_id
+        } else {
+            ""
+        };
 
-        let indices: Vec<usize> = get_text(evaluate_xpath_element(
-            Node::Element(geometry_element),
-            "./c:mesh/c:triangles/c:p",
-            &context,
-        ))
+        let indices: Vec<usize> = get_text(
+            evaluate_xpath_element(
+                Node::Element(geometry_element),
+                "./c:mesh/c:triangles/c:p",
+                &context,
+            )
+            .unwrap(),
+        )
         .split_whitespace()
         .map(|s| FromStr::from_str(s).unwrap())
         .collect();
         let modulo = indices.len() / (count * 3);
+
         let mut triangle = Triangle::new(
             Vertex { normal: Vec3([0.0; 3]), position: Vec3([0.0; 3]) },
             Vertex { normal: Vec3([0.0; 3]), position: Vec3([0.0; 3]) },
@@ -278,16 +338,20 @@ fn read(xml: &str) -> Result<Scene, ImportError> {
     Ok(Scene { camera, triangles, point_lights, triangles_bvh: None, materials })
 }
 
-fn evaluate_xpath_attribute<'a>(node: Node<'a>, xpath: &str, context: &'a Context) -> &'a str {
+fn evaluate_xpath_attribute<'a>(
+    node: Node<'a>,
+    xpath: &str,
+    context: &'a Context,
+) -> Result<&'a str, &'static str> {
     let xpath = Factory::new().build(xpath).unwrap().unwrap();
-    if let Value::Nodeset(attribute_nodes) = xpath.evaluate(context, node).unwrap() {
-        if let Node::Attribute(attribute) = attribute_nodes.document_order_first().unwrap() {
-            attribute.value()
+    if let Ok(Value::Nodeset(attribute_nodes)) = xpath.evaluate(context, node) {
+        if let Some(Node::Attribute(attribute)) = attribute_nodes.document_order_first() {
+            Ok(attribute.value())
         } else {
-            panic!("First node in result is not an attribute node.")
+            Err("First node in result is not an attribute node.")
         }
     } else {
-        panic!("XPath expression does not return a nodeset.")
+        Err("XPath expression does not return a nodeset.")
     }
 }
 
@@ -313,16 +377,20 @@ fn evaluate_xpath_element_all<'a>(
     }
 }
 
-fn evaluate_xpath_element<'a>(node: Node<'a>, xpath: &str, context: &'a Context) -> Element<'a> {
+fn evaluate_xpath_element<'a>(
+    node: Node<'a>,
+    xpath: &str,
+    context: &'a Context,
+) -> Result<Element<'a>, &'static str> {
     let xpath = Factory::new().build(xpath).unwrap().unwrap();
     if let Value::Nodeset(element_nodes) = xpath.evaluate(context, node).unwrap() {
-        if let Node::Element(element) = element_nodes.document_order_first().unwrap() {
-            element
+        if let Some(Node::Element(element)) = element_nodes.document_order_first() {
+            Ok(element)
         } else {
-            panic!("First node in result is not an element node.")
+            Err("First node in result is not an element node.")
         }
     } else {
-        panic!("XPath expression does not return a nodeset.")
+        Err("XPath expression does not return a nodeset.")
     }
 }
 
@@ -341,17 +409,17 @@ fn get_by_url<'a>(document: &'a Document, url: &str, context: &'a Context) -> El
             &format!("//*[@id=\"{}\"]", &url[1..]),
             context,
         )
+        .unwrap()
     } else {
         panic!("Unknown URL.")
     }
 }
 
 fn get_transform_of_node(node: Element, context: &Context) -> Mat4 {
-    let matrix_str = get_text(evaluate_xpath_element(
-        Node::Element(node),
-        "./c:matrix[@sid=\"transform\"]",
-        context,
-    ));
+    let matrix_str = get_text(
+        evaluate_xpath_element(Node::Element(node), "./c:matrix[@sid=\"transform\"]", context)
+            .unwrap(),
+    );
     let f: Vec<_> = matrix_str.split_whitespace().map(|s| FromStr::from_str(s).unwrap()).collect();
     Mat4([
         [f[0], f[4], f[8], f[12]],
@@ -367,7 +435,8 @@ fn get_vec3s_of_source(node: Element, context: &Context) -> Vec<Vec3> {
         Node::Element(node),
         "./c:technique_common/c:accessor/@source",
         context,
-    );
+    )
+    .unwrap();
     let float_array_str = get_text(get_by_url(&document, float_array_url, context));
     let mut v = Vec3([0.0; 3]);
     let mut at = 0;
