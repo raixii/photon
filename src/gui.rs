@@ -11,8 +11,11 @@ use std::sync::Mutex;
 
 const VERTEX_SHADER: &str = r#"
     #version 320 es
+
     in vec2 in_pos;
+
     out vec2 out_pos;
+
     void main() {
         out_pos = in_pos;
         gl_Position = vec4(in_pos, 0.0, 1.0);
@@ -22,11 +25,24 @@ const VERTEX_SHADER: &str = r#"
 const FRAGMENT_SHADER: &str = r#"
     #version 320 es
     #extension GL_ARB_explicit_uniform_location : enable
+
     in highp vec2 out_pos;
-    out highp vec4 color;
+
+    out highp vec4 out_color;
+
     layout(location = 0) uniform sampler2D tex;
+    layout(location = 1) uniform highp float exposure;
+
     void main() {
-        color = vec4(texture(tex, (out_pos + vec2(1.0, 1.0)) * vec2(0.5, -0.5)).xyz, 1.0);
+        highp vec3 color = texture(tex, (out_pos + vec2(1.0, 1.0)) * vec2(0.5, -0.5)).xyz;
+
+        color *= exposure; // exposure
+        highp float max_color = max(color.x, max(color.y, color.z));
+        color /= vec3(1.0 + max_color); // tone mapping (Reinhard)
+        color = clamp(color, 0.0, 1.0); // clamp between [0; 1]
+        color = pow(color, vec3(2.2)); // gamma correction
+
+        out_color = vec4(color, 1.0);
     }
 "#;
 
@@ -35,12 +51,12 @@ const QUAD: &[f32] = &[-1.0, -1.0, -1.0, 1.0, 1.0, -1.0, -1.0, 1.0, 1.0, 1.0, 1.
 pub fn main_loop(
     window_w: usize,
     window_h: usize,
-    mut exposure: f64,
+    exposure: f64,
     image: &Mutex<ImageBuffer>,
     want_quit: &AtomicBool,
 ) {
-    let mut float_buffer = vec![Vec4([0.0; 4]); window_w * window_h];
-    let mut display_buffer = vec![0u8; window_w * window_h * 3];
+    let mut exposure = exposure as f32;
+    let mut display_buffer = vec![0.0f32; window_w * window_h * 3];
     let mut buffer_version = std::usize::MAX;
     let mut buffer_changed = true;
 
@@ -151,12 +167,12 @@ pub fn main_loop(
         gl::TexImage2D(
             gl::TEXTURE_2D,
             0,
-            gl::RGB as GLint,
+            gl::RGB32F as GLint,
             window_w as GLsizei,
             window_h as GLsizei,
             0,
             gl::RGB,
-            gl::UNSIGNED_BYTE,
+            gl::FLOAT,
             display_buffer.as_ptr() as *const c_void,
         );
         texture
@@ -165,6 +181,7 @@ pub fn main_loop(
     unsafe {
         gl::UseProgram(program);
         gl::Uniform1i(0, 0);
+        gl::Uniform1f(1, 2.0f32.powf(exposure));
     }
 
     let mut event_pump = sdl_context.event_pump().unwrap();
@@ -181,7 +198,9 @@ pub fn main_loop(
                         } else {
                             1.0
                         };
-                    buffer_changed = true;
+                    unsafe {
+                        gl::Uniform1f(1, 2.0f32.powf(exposure));
+                    }
                     window.set_title(&format!("Photon: exposure={:+.1}", exposure)).unwrap();
                 }
                 Event::KeyDown { keycode: Some(Keycode::F4), keymod, .. } => {
@@ -191,7 +210,9 @@ pub fn main_loop(
                         } else {
                             1.0
                         };
-                    buffer_changed = true;
+                    unsafe {
+                        gl::Uniform1f(1, 2.0f32.powf(exposure));
+                    }
                     window.set_title(&format!("Photon: exposure={:+.1}", exposure)).unwrap();
                 }
                 _ => {}
@@ -201,41 +222,30 @@ pub fn main_loop(
         {
             let image = image.lock().unwrap();
             if buffer_version != image.version() {
-                float_buffer.copy_from_slice(image.get_buffer());
+                for (i, &Vec4([r, g, b, _a])) in image.get_buffer().iter().enumerate() {
+                    display_buffer[3 * i] = r as f32;
+                    display_buffer[3 * i + 1] = g as f32;
+                    display_buffer[3 * i + 2] = b as f32;
+                }
                 buffer_version = image.version();
                 buffer_changed = true;
             }
         }
 
         if buffer_changed {
-            for (j, color) in float_buffer.iter().enumerate() {
-                let mut c = color.xyz();
-                for i in 0..3 {
-                    c.0[i] *= 2.0f64.powf(exposure); // exposure
-                }
-                let max_color = c.x().max(c.y()).max(c.z());
-                for i in 0..3 {
-                    c.0[i] /= 1.0 + max_color; // tone mapping (Reinhard)
-                    c.0[i] = c.0[i].min(1.0).max(0.0); // clamp between [0; 1]
-                    c.0[i] = c.0[i].powf(2.2); // gamma correction
-                    display_buffer[j * 3 + i] = (c.0[i] * 255.0) as u8; // machine numbers
-                }
-            }
-
             unsafe {
                 gl::TexImage2D(
                     gl::TEXTURE_2D,
                     0,
-                    gl::RGB as GLint,
+                    gl::RGB32F as GLint,
                     window_w as GLsizei,
                     window_h as GLsizei,
                     0,
                     gl::RGB,
-                    gl::UNSIGNED_BYTE,
+                    gl::FLOAT,
                     display_buffer.as_ptr() as *const c_void,
                 );
             }
-
             buffer_changed = false;
         }
 
