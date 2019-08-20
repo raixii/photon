@@ -10,7 +10,7 @@ use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
 use std::sync::Mutex;
 
 const VERTEX_SHADER: &str = r#"
-    #version 330
+    #version 320 es
     in vec2 in_pos;
     out vec2 out_pos;
     void main() {
@@ -20,10 +20,10 @@ const VERTEX_SHADER: &str = r#"
 "#;
 
 const FRAGMENT_SHADER: &str = r#"
-    #version 330
+    #version 320 es
     #extension GL_ARB_explicit_uniform_location : enable
-    in vec2 out_pos;
-    out vec4 color;
+    in highp vec2 out_pos;
+    out highp vec4 color;
     layout(location = 0) uniform sampler2D tex;
     void main() {
         color = vec4(texture(tex, (out_pos + vec2(1.0, 1.0)) * vec2(0.5, -0.5)).xyz, 1.0);
