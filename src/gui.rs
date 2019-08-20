@@ -1,13 +1,36 @@
 use crate::image_buffer::ImageBuffer;
 use crate::math::Vec4;
-use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
-use std::{sync::Mutex, thread, time};
-
-extern crate sdl2;
-
+use gl::types::*;
 use sdl2::event::Event;
 use sdl2::keyboard::{Keycode, Mod};
-use sdl2::pixels::PixelFormatEnum;
+use sdl2::video::SwapInterval;
+use std::ffi::c_void;
+use std::mem::size_of_val;
+use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
+use std::sync::Mutex;
+
+const VERTEX_SHADER: &str = r#"
+    #version 330
+    in vec2 in_pos;
+    out vec2 out_pos;
+    void main() {
+        out_pos = in_pos;
+        gl_Position = vec4(in_pos, 0.0, 1.0);
+    }
+"#;
+
+const FRAGMENT_SHADER: &str = r#"
+    #version 330
+    #extension GL_ARB_explicit_uniform_location : enable
+    in vec2 out_pos;
+    out vec4 color;
+    layout(location = 0) uniform sampler2D tex;
+    void main() {
+        color = vec4(texture(tex, (out_pos + vec2(1.0, 1.0)) * vec2(0.5, -0.5)).xyz, 1.0);
+    }
+"#;
+
+const QUAD: &[f32] = &[-1.0, -1.0, -1.0, 1.0, 1.0, -1.0, -1.0, 1.0, 1.0, 1.0, 1.0, -1.0];
 
 pub fn main_loop(
     window_w: usize,
@@ -24,32 +47,126 @@ pub fn main_loop(
     let sdl_context = sdl2::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
 
-    let window = video_subsystem
+    let mut window = video_subsystem
         .window(&format!("Photon: exposure={:+.1}", exposure), window_w as u32, window_h as u32)
         .position_centered()
+        .opengl()
         .build()
         .unwrap();
-    let mut canvas = window.into_canvas().build().unwrap();
+    let _gl_context = window.gl_create_context().unwrap();
+    video_subsystem.gl_set_swap_interval(SwapInterval::VSync).unwrap();
+    gl::load_with(|s| video_subsystem.gl_get_proc_address(s) as *const std::ffi::c_void);
 
-    let texture_creator = canvas.texture_creator();
-    let mut texture = texture_creator
-        .create_texture_streaming(PixelFormatEnum::RGB24, window_w as u32, window_h as u32)
-        .unwrap();
+    let vertex_shader = unsafe {
+        let shader = gl::CreateShader(gl::VERTEX_SHADER);
+        let source_ptr = VERTEX_SHADER.as_ptr() as *const GLchar;
+        let source_len = VERTEX_SHADER.len() as GLint;
+        gl::ShaderSource(shader, 1, &source_ptr, &source_len);
+        gl::CompileShader(shader);
+        let mut result = 0;
+        gl::GetShaderiv(shader, gl::COMPILE_STATUS, &mut result);
+        if result != 1 {
+            let mut buf = vec![0u8; 10000];
+            gl::GetShaderInfoLog(
+                shader,
+                buf.len() as GLsizei,
+                std::ptr::null_mut(),
+                buf.as_mut_ptr() as *mut GLchar,
+            );
+            panic!("GLSL output: {}", String::from_utf8_lossy(&buf[..]));
+        }
+        shader
+    };
 
-    texture
-        .with_lock(None, |buffer: &mut [u8], pitch: usize| {
-            for y in 0..window_h {
-                for x in 0..window_w {
-                    let offset = y * pitch + x * 3;
-                    buffer[offset] = 255 as u8;
-                    buffer[offset + 1] = 255 as u8;
-                    buffer[offset + 2] = 255;
-                }
-            }
-        })
-        .unwrap();
+    let fragment_shader = unsafe {
+        let shader = gl::CreateShader(gl::FRAGMENT_SHADER);
+        let source_ptr = FRAGMENT_SHADER.as_ptr() as *const GLchar;
+        let source_len = FRAGMENT_SHADER.len() as GLint;
+        gl::ShaderSource(shader, 1, &source_ptr, &source_len);
+        gl::CompileShader(shader);
+        let mut result = 0;
+        gl::GetShaderiv(shader, gl::COMPILE_STATUS, &mut result);
+        if result != 1 {
+            let mut buf = vec![0u8; 10000];
+            gl::GetShaderInfoLog(
+                shader,
+                buf.len() as GLsizei,
+                std::ptr::null_mut(),
+                buf.as_mut_ptr() as *mut GLchar,
+            );
+            panic!("GLSL output: {}", String::from_utf8_lossy(&buf[..]));
+        }
+        shader
+    };
 
-    canvas.copy(&texture, None, None).unwrap();
+    let program = unsafe {
+        let program = gl::CreateProgram();
+        gl::AttachShader(program, vertex_shader);
+        gl::AttachShader(program, fragment_shader);
+        gl::LinkProgram(program);
+        let mut result = 0;
+        gl::GetProgramiv(program, gl::LINK_STATUS, &mut result);
+        if result != 1 {
+            let mut buf = vec![0u8; 10000];
+            gl::GetProgramInfoLog(
+                program,
+                buf.len() as GLsizei,
+                std::ptr::null_mut(),
+                buf.as_mut_ptr() as *mut GLchar,
+            );
+            panic!("GLSL output: {}", String::from_utf8_lossy(&buf[..]));
+        }
+        program
+    };
+
+    let buffer = unsafe {
+        let mut buffer = 0;
+        gl::GenBuffers(1, &mut buffer);
+        gl::BindBuffer(gl::ARRAY_BUFFER, buffer);
+        gl::BufferData(
+            gl::ARRAY_BUFFER,
+            (QUAD.len() * size_of_val(&QUAD[0])) as GLsizeiptr,
+            QUAD.as_ptr() as *const c_void,
+            gl::STATIC_DRAW,
+        );
+        buffer
+    };
+
+    let _vao = unsafe {
+        let mut vao = 0;
+        gl::GenVertexArrays(1, &mut vao);
+        gl::BindVertexArray(vao);
+        gl::BindBuffer(gl::ARRAY_BUFFER, buffer);
+        gl::VertexAttribPointer(0, 2, gl::FLOAT, gl::FALSE, 0, std::ptr::null());
+        gl::EnableVertexArrayAttrib(vao, 0);
+        vao
+    };
+
+    let _texture = unsafe {
+        let mut texture = 0;
+        gl::GenTextures(1, &mut texture);
+        gl::BindTexture(gl::TEXTURE_2D, texture);
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR as GLint);
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as GLint);
+        gl::TexImage2D(
+            gl::TEXTURE_2D,
+            0,
+            gl::RGB as GLint,
+            window_w as GLsizei,
+            window_h as GLsizei,
+            0,
+            gl::RGB,
+            gl::UNSIGNED_BYTE,
+            display_buffer.as_ptr() as *const c_void,
+        );
+        texture
+    };
+
+    unsafe {
+        gl::UseProgram(program);
+        gl::Uniform1i(0, 0);
+    }
+
     let mut event_pump = sdl_context.event_pump().unwrap();
     'running: loop {
         for event in event_pump.poll_iter() {
@@ -65,10 +182,7 @@ pub fn main_loop(
                             1.0
                         };
                     buffer_changed = true;
-                    canvas
-                        .window_mut()
-                        .set_title(&format!("Photon: exposure={:+.1}", exposure))
-                        .unwrap();
+                    window.set_title(&format!("Photon: exposure={:+.1}", exposure)).unwrap();
                 }
                 Event::KeyDown { keycode: Some(Keycode::F4), keymod, .. } => {
                     exposure +=
@@ -78,10 +192,7 @@ pub fn main_loop(
                             1.0
                         };
                     buffer_changed = true;
-                    canvas
-                        .window_mut()
-                        .set_title(&format!("Photon: exposure={:+.1}", exposure))
-                        .unwrap();
+                    window.set_title(&format!("Photon: exposure={:+.1}", exposure)).unwrap();
                 }
                 _ => {}
             }
@@ -110,14 +221,30 @@ pub fn main_loop(
                     display_buffer[j * 3 + i] = (c.0[i] * 255.0) as u8; // machine numbers
                 }
             }
-            texture.update(None, &display_buffer, window_w * 3).unwrap();
+
+            unsafe {
+                gl::TexImage2D(
+                    gl::TEXTURE_2D,
+                    0,
+                    gl::RGB as GLint,
+                    window_w as GLsizei,
+                    window_h as GLsizei,
+                    0,
+                    gl::RGB,
+                    gl::UNSIGNED_BYTE,
+                    display_buffer.as_ptr() as *const c_void,
+                );
+            }
+
             buffer_changed = false;
         }
-        // The rest of the game loop goes here...
-        canvas.clear();
-        canvas.copy(&texture, None, None).unwrap();
-        canvas.present();
-        thread::sleep(time::Duration::from_millis(50));
+
+        unsafe {
+            gl::Clear(gl::COLOR_BUFFER_BIT);
+            gl::DrawArrays(gl::TRIANGLES, 0, QUAD.len() as GLsizei);
+        }
+        window.gl_swap_window();
     }
+
     want_quit.store(true, Relaxed);
 }
