@@ -5,7 +5,7 @@ extern crate clap;
 
 use bvh::Bvh;
 use image_buffer::ImageBuffer;
-use import::{Blender, Collada, Import};
+use import::{Blender, Import};
 use std::fmt::{Debug, Formatter};
 use std::process::{Command, Stdio};
 use std::{fs, io::Read, str::FromStr, sync::atomic, sync::Arc, sync::Mutex, thread, time};
@@ -64,17 +64,7 @@ fn main() -> Result<(), ErrorMessage> {
 
         let path = matches.value_of("INPUT").unwrap();
 
-        let mut scene = if path.ends_with(".dae") {
-            let mut file_text = String::new();
-            let mut infile = fs::File::open(path)
-                .map_err(|e| format!("File {} cannot be opened: {}", path, e))?;
-            infile
-                .read_to_string(&mut file_text)
-                .map_err(|e| format!("File {} cannot be read: {}", path, e))?;
-            Collada { xml: file_text }
-                .import()
-                .map_err(|e| format!("Error during Collada import: {}", e))
-        } else if path.ends_with(".blend") {
+        let mut scene = if path.ends_with(".blend") {
             eprintln!("Starting Blender ...");
             let result = Command::new("blender")
                 .args(&[path, "-b", "--log-level", "0", "-P", "blender_ray_exporter.py", "--"])

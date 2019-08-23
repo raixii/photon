@@ -1,8 +1,6 @@
 mod blender;
-mod collada;
 
 pub use blender::Blender;
-pub use collada::Collada;
 
 use crate::scene::Scene;
 use std::error::Error;

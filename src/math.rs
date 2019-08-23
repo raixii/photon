@@ -70,6 +70,12 @@ impl Vec3 {
     pub fn max(self, other: Vec3) -> Vec3 {
         Vec3([self.0[0].max(other.0[0]), self.0[1].max(other.0[1]), self.0[2].max(other.0[2])])
     }
+
+    #[inline(always)]
+    pub fn normalize_len(self) -> (Vec3, f64) {
+        let len = vecmath::vec3_len(self.0);
+        (Vec3([self.0[0] / len, self.0[1] / len, self.0[2] / len]), len)
+    }
 }
 
 impl Mul<Vec3> for f64 {

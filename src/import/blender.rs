@@ -183,9 +183,9 @@ impl<'a> Import for Blender<'a> {
                     }
 
                     scene_materials.push(Material {
-                        emission: to_vec4(mesh.material.emission).xyz(),
                         color: to_vec4(mesh.material.base_color).xyz(),
-                        specular: mesh.material.specular,
+                        specular: mesh.material.specular * 0.08,
+                        metallic: mesh.material.metallic,
                     });
                 }
             }

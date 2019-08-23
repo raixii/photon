@@ -1,12 +1,12 @@
 use crate::bvh::{BvhChild, BvhNode};
 use crate::math::{AlmostEq, Vec3, EPS};
-use crate::scene::{Camera, Scene, Triangle};
+use crate::scene::{Camera, Material, Scene, Triangle};
 use std::f64::{INFINITY, NEG_INFINITY};
 
 pub fn raytrace(scene: &Scene, x: f64, y: f64, width: f64, height: f64) -> Option<Vec3> {
     let colors: Vec<_> = rgss(&scene.camera, x, y, width, height)
         .iter()
-        .map(|ray| handle_ray(scene, *ray))
+        .map(|ray| handle_ray(scene, scene.camera.position, *ray, 1.0, 1024, 0.0))
         .collect();
     Some(colors.iter().fold(Vec3([0.0; 3]), |acc, val| {
         if let Some(val) = val {
@@ -17,36 +17,73 @@ pub fn raytrace(scene: &Scene, x: f64, y: f64, width: f64, height: f64) -> Optio
     }))
 }
 
-fn handle_ray(scene: &Scene, ray: Vec3) -> Option<Vec3> {
+fn handle_ray(
+    scene: &Scene,
+    origin: Vec3,
+    ray: Vec3,
+    lambda_min: f64,
+    max_bounces: usize,
+    path_length: f64,
+) -> Option<Vec3> {
+    assert!(max_bounces != std::usize::MAX);
     let bvh = scene.triangles_bvh.as_ref().unwrap().root();
-    if let Some(shoot_result) = shoot_ray(bvh, scene.camera.position, ray, 1.0, INFINITY) {
-        let dist_to_eye = shoot_result.lambda * ray.len();
-        let mut result = Vec3([0.0; 3]);
-        for point_light in &scene.point_lights {
-            let mut ray_to_light = point_light.position - shoot_result.hit_pos;
-            let dist_to_light = ray_to_light.len();
-            ray_to_light /= dist_to_light;
-            let cos_n_ray = shoot_result.weighted_normal().dot(ray_to_light);
-            if cos_n_ray <= 0.0 {
-                continue;
+
+    if let Some(shoot_result) = shoot_ray(bvh, origin, ray, lambda_min, INFINITY) {
+        let (ray, ray_len) = ray.normalize_len();
+        let path_length = path_length + ray_len * shoot_result.lambda;
+        let n = shoot_result.weighted_normal();
+        let p = shoot_result.hit_pos;
+        let r = reflect_ray(ray, n);
+        let triangle = shoot_result.triangle;
+        let material = if max_bounces == 0 {
+            anti_bounce_material(scene.material_of_triangle(triangle))
+        } else {
+            *scene.material_of_triangle(triangle)
+        };
+        let mut result_color = Vec3([0.0; 3]);
+
+        if material.metallic > EPS {
+            if let Some(color) = handle_ray(scene, p, r, EPS, max_bounces - 1, path_length) {
+                result_color += material.color * color * material.metallic;
             }
-            let light_shoot_result =
-                shoot_ray(bvh, shoot_result.hit_pos, ray_to_light, EPS, dist_to_light);
-            if light_shoot_result.is_some() {
-                continue;
-            }
-            let attenuation_dist = dist_to_light + dist_to_eye;
-            let attenuation = point_light.a * attenuation_dist * attenuation_dist
-                + point_light.b * attenuation_dist
-                + point_light.c;
-            result += scene.material_of_triangle(shoot_result.triangle).color
-                * point_light.color
-                * (cos_n_ray / attenuation);
         }
-        Some(result)
+
+        let diffuse = 1.0 - material.metallic;
+        if diffuse > EPS {
+            for point_light in &scene.point_lights {
+                let (light_ray, light_dist) = (point_light.position - p).normalize_len();
+                let cos_n_light_ray = n.dot(light_ray);
+                if cos_n_light_ray <= 0.0 {
+                    continue;
+                }
+
+                let light_shoot_result = shoot_ray(bvh, p, light_ray, EPS, light_dist);
+                if light_shoot_result.is_some() {
+                    continue;
+                }
+
+                let path_length = path_length + light_dist;
+                let attenuation = point_light.a * path_length * path_length
+                    + point_light.b * path_length
+                    + point_light.c;
+
+                result_color += (material.color * point_light.color)
+                    * (cos_n_light_ray * diffuse / attenuation);
+            }
+        }
+
+        Some(result_color)
     } else {
         None
     }
+}
+
+fn reflect_ray(ray: Vec3, n: Vec3) -> Vec3 {
+    ray - 2.0 * ray.dot(n) * n
+}
+
+fn anti_bounce_material(material: &Material) -> Material {
+    Material { color: material.color, specular: 0.0, metallic: 0.0 }
 }
 
 fn calc_ray(camera: &Camera, x: f64, y: f64, width: f64, height: f64) -> Vec3 {
