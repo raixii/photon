@@ -1,5 +1,5 @@
 use crate::bvh::{BvhChild, BvhNode};
-use crate::math::{AlmostEq, Mat4, Vec3, EPS};
+use crate::math::{AlmostEq, Mat4, Plane, Vec3, EPS};
 use crate::scene::{Camera, Material, Scene, Triangle};
 use rand::Rng;
 use std::f64::{consts::PI, INFINITY, NEG_INFINITY};
@@ -142,9 +142,9 @@ struct RayShootResult<'a> {
 
 impl<'a> RayShootResult<'a> {
     fn weighted_normal(&self) -> Vec3 {
-        (self.triangle.a.normal * self.barycentric_coords.x()
-            + self.triangle.b.normal * self.barycentric_coords.y()
-            + self.triangle.c.normal * self.barycentric_coords.z())
+        (self.triangle.a().normal * self.barycentric_coords.x()
+            + self.triangle.b().normal * self.barycentric_coords.y()
+            + self.triangle.c().normal * self.barycentric_coords.z())
         .normalize()
     }
 }
@@ -216,17 +216,7 @@ fn shoot_ray(
             }
         }
         BvhChild::Leaf(triangle) => {
-            // (a, b, c) is the normal vector of the triangle's plane:  n = (t[1]-t[0]) x (t[2]-t[0])
-            // Triangle plane:  ax + by + cz = d
-            //     (a, b, c) = n.xyz
-            //     d = dot(t[0], n.xyz)
-            let (a, b, c, d) = {
-                let n = (triangle.b.position - triangle.a.position)
-                    .cross(triangle.c.position - triangle.a.position);
-                let d = triangle.a.position.dot(n);
-                (n.x(), n.y(), n.z(), d)
-            };
-
+            let Plane { a, b, c, d } = *triangle.plane();
             // Ray equation:  ray_origin + lambda * ray
 
             // Plug the ray equation(s) into the plane equation:
@@ -241,14 +231,14 @@ fn shoot_ray(
 
             // Get the barycentric coordinates
             let area_triangle = Vec3([a, b, c]).len();
-            let area_triangle_abi = (triangle.a.position - intersection)
-                .cross(triangle.b.position - intersection)
+            let area_triangle_abi = (triangle.a().position - intersection)
+                .cross(triangle.b().position - intersection)
                 .len();
-            let area_triangle_aci = (triangle.a.position - intersection)
-                .cross(triangle.c.position - intersection)
+            let area_triangle_aci = (triangle.a().position - intersection)
+                .cross(triangle.c().position - intersection)
                 .len();
-            let area_triangle_bci = (triangle.b.position - intersection)
-                .cross(triangle.c.position - intersection)
+            let area_triangle_bci = (triangle.b().position - intersection)
+                .cross(triangle.c().position - intersection)
                 .len();
             let gamma = area_triangle_abi / area_triangle;
             let beta = area_triangle_aci / area_triangle;

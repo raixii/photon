@@ -1,5 +1,5 @@
 use crate::bvh::Bvh;
-use crate::math::{HasAABB, Vec3};
+use crate::math::{HasAABB, Plane, Vec3};
 
 #[derive(Debug)]
 pub struct Scene {
@@ -39,15 +39,41 @@ pub struct PointLight {
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Triangle {
-    pub a: Vertex,
-    pub b: Vertex,
-    pub c: Vertex,
+    a: Vertex,
+    b: Vertex,
+    c: Vertex,
     material: usize,
+    plane: Plane,
 }
 
 impl Triangle {
-    pub fn new(a: Vertex, b: Vertex, c: Vertex, material: usize) -> Triangle {
-        Triangle { a, b, c, material }
+    pub fn new(ta: Vertex, tb: Vertex, tc: Vertex, material: usize) -> Triangle {
+        // (a, b, c) is the normal vector of the triangle's plane:  n = (t[1]-t[0]) x (t[2]-t[0])
+        // Triangle plane:  ax + by + cz = d
+        //     (a, b, c) = n.xyz
+        //     d = dot(t[0], n.xyz)
+        let (pa, pb, pc, pd) = {
+            let n = (tb.position - ta.position).cross(tc.position - ta.position);
+            let d = ta.position.dot(n);
+            (n.x(), n.y(), n.z(), d)
+        };
+        Triangle { a: ta, b: tb, c: tc, material, plane: Plane { a: pa, b: pb, c: pc, d: pd } }
+    }
+
+    pub fn a(&self) -> &Vertex {
+        &self.a
+    }
+
+    pub fn b(&self) -> &Vertex {
+        &self.b
+    }
+
+    pub fn c(&self) -> &Vertex {
+        &self.c
+    }
+
+    pub fn plane(&self) -> &Plane {
+        &self.plane
     }
 }
 

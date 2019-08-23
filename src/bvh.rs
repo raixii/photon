@@ -23,7 +23,6 @@ struct Node<T: HasAABB + Debug + Clone> {
     aabb_max: Vec3,
     value: Value<T>,
 }
-
 #[derive(Debug)]
 pub struct Bvh<T: HasAABB + Debug + Clone> {
     // root = 0
@@ -68,7 +67,7 @@ impl<'a, T: HasAABB + Debug + Clone> BvhNode<'a, T> {
 impl<T: HasAABB + Debug + Clone> Bvh<T> {
     pub fn new(objects: &[T]) -> Bvh<T> {
         let layer_count = (objects.len() as f64).log2().ceil() as usize + 1;
-        let node_count = (1 << layer_count) - 1;
+        let node_count = (1 << layer_count) - 1; // there are 2^layer_count-1 nodes in a tree
         let mut nodes = vec![
             Node {
                 aabb_min: Vec3([std::f64::NAN; 3]),
@@ -81,20 +80,28 @@ impl<T: HasAABB + Debug + Clone> Bvh<T> {
         // init leaves
         for i in 0..objects.len() {
             let (aabb_min, aabb_max) = objects[i].calculate_aabb();
-            nodes[node_count / 2 + 1 + i] =
+            nodes[node_count / 2 + i] =
                 Node { aabb_min, aabb_max, value: Value::Leaf(objects[i].clone()) };
         }
+        sort_by_metric(&mut nodes, node_count / 2, node_count / 2 + objects.len());
 
         // init parent layers
         for layer in (0..(layer_count - 1)).rev() {
             let layer_start = (1 << layer) - 1;
             let layer_end = (1 << (layer + 1)) - 1;
+            let mut layer_real_end = layer_end;
             for i in layer_start..layer_end {
                 let child_a = &nodes[2 * i + 1];
                 let child_b = &nodes[2 * i + 2];
                 match (&child_a.value, &child_b.value) {
-                    (Value::Empty, Value::Empty) => {}
+                    (Value::Empty, Value::Empty) => {
+                        layer_real_end = i;
+                        break;
+                    }
                     (Value::Empty, _) => {
+                        unreachable!();
+                    }
+                    (_, Value::Empty) => {
                         //      i
                         //    n   e
                         //  n1 n2
@@ -103,21 +110,16 @@ impl<T: HasAABB + Debug + Clone> Bvh<T> {
                         // 1. n -> i
                         // 2. n1 -> e
                         // 3. n2 -> n
-                        let n = 2 * i + 2;
-                        let e = 2 * i + 1;
+                        let e = 2 * i + 2;
+                        let n = 2 * i + 1;
                         // 1. n -> a
                         nodes.swap(n, i);
                         // 2. n1 -> e
                         swap_tree_rec(&mut nodes, n * 2 + 1, e);
                         // 3. n2 -> n
                         swap_tree_rec(&mut nodes, n * 2 + 2, n);
-                    }
-                    (_, Value::Empty) => {
-                        let e = 2 * i + 2;
-                        let n = 2 * i + 1;
-                        nodes.swap(n, i);
-                        swap_tree_rec(&mut nodes, n * 2 + 1, e);
-                        swap_tree_rec(&mut nodes, n * 2 + 2, n);
+                        layer_real_end = i + 1;
+                        break;
                     }
                     (_, _) => {
                         nodes[i] = Node {
@@ -128,6 +130,7 @@ impl<T: HasAABB + Debug + Clone> Bvh<T> {
                     }
                 }
             }
+            sort_by_metric(&mut nodes, layer_start, layer_real_end);
         }
 
         Bvh { nodes }
@@ -138,10 +141,33 @@ impl<T: HasAABB + Debug + Clone> Bvh<T> {
     }
 }
 
-fn swap_tree_rec<T: HasAABB + Debug + Clone>(nodes: &mut Vec<Node<T>>, from: usize, to: usize) {
+fn swap_tree_rec<T: HasAABB + Debug + Clone>(nodes: &mut [Node<T>], from: usize, to: usize) {
     if from < nodes.len() && to < nodes.len() && !nodes[from].value.is_empty() {
         nodes.swap(from, to);
         swap_tree_rec(nodes, from * 2 + 1, to * 2 + 1);
         swap_tree_rec(nodes, from * 2 + 2, to * 2 + 2);
+    }
+}
+
+fn calc_metric<T: HasAABB + Debug + Clone>(a: &Node<T>, b: &Node<T>) -> f64 {
+    assert!(!a.value.is_empty() && !b.value.is_empty());
+    (a.aabb_min.min(b.aabb_min) - a.aabb_max.max(b.aabb_max)).manhattan_len()
+}
+
+fn sort_by_metric<T: HasAABB + Debug + Clone>(nodes: &mut [Node<T>], from: usize, to: usize) {
+    for slot in from..to / 2 {
+        let slot = slot * 2;
+        let mut min_metric = std::f64::INFINITY;
+        let mut min_i = 0;
+        for i in slot + 1..nodes.len() {
+            let metric = calc_metric(&nodes[slot], &nodes[i]);
+            if metric < min_metric {
+                min_metric = metric;
+                min_i = i;
+            }
+        }
+        if slot + 1 != min_i {
+            swap_tree_rec(nodes, slot + 1, min_i);
+        }
     }
 }

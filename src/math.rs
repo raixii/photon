@@ -76,6 +76,11 @@ impl Vec3 {
         let len = vecmath::vec3_len(self.0);
         (Vec3([self.0[0] / len, self.0[1] / len, self.0[2] / len]), len)
     }
+
+    #[inline(always)]
+    pub fn manhattan_len(self) -> f64 {
+        self.0[0] + self.0[1] + self.0[2]
+    }
 }
 
 impl Mul<Vec3> for f64 {
@@ -266,4 +271,13 @@ impl AlmostEq for f64 {
 pub trait HasAABB {
     // The first Vec3 has to be the minimum coordinate of the AABB, the second the maximum.
     fn calculate_aabb(&self) -> (Vec3, Vec3);
+}
+
+// ax + by + cz = d
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct Plane {
+    pub a: f64,
+    pub b: f64,
+    pub c: f64,
+    pub d: f64,
 }
