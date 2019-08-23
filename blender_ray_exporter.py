@@ -7,6 +7,9 @@ import gzip
 from math import sqrt
 from mathutils import Matrix, Vector, Euler, Quaternion
 
+def eprint(*args, **kwargs):
+    print(*args, file=sys.stderr, **kwargs)
+
 def convert_color(c):
     return [c.r, c.g, c.b]
 
@@ -23,15 +26,24 @@ def rename(name):
     return name.replace(" ", "_").lower()
 
 def main():
+    if "--" in sys.argv:
+        args = sys.argv[sys.argv.index("--") + 1:]
+    else:
+        args = []
+    if len(args) >= 1:
+        outfile = args[0]
+    else:
+        outfile = "-"
+
     export_path = bpy.data.filepath + ".json.gz"
-    print("Exporting to: " + export_path)
-    print()
+    eprint("Exporting to: " + export_path)
+    eprint()
 
     out_objects = {} 
     depsgraph = bpy.context.evaluated_depsgraph_get()
     for object_inst in depsgraph.object_instances:
         object = object_inst.object
-        print(f">>> Object {object.type} {object.name}")
+        eprint(f">>> Object {object.type} {object.name}")
 
         out_object = dict()
         out_object["name"] = object.name
@@ -42,7 +54,7 @@ def main():
 
             mesh = object.to_mesh()
             mesh.calc_loop_triangles()
-            print(f"\t{len(mesh.loop_triangles)} triangles")
+            eprint(f"\t{len(mesh.loop_triangles)} triangles")
             uv_layer = mesh.uv_layers.active.data
             triangles = []
             for t in mesh.loop_triangles:
@@ -70,7 +82,7 @@ def main():
                 elif in_value.type == "VECTOR":
                     out_material[rename(in_name)] = convert_vector(in_value.default_value)
                 else:
-                    print("\tUnknown type in material node", in_value.type)
+                    eprint("\tUnknown type in material node", in_value.type)
         elif object.type == "LIGHT":
             out_object["lamp_type"] = object.data.type
             out_object["color"] = convert_color(object.data.color)
@@ -93,7 +105,11 @@ def main():
         "objects": out_objects,
     }
 
-    with gzip.open(export_path, "wt", encoding="UTF-8") as fp:
-        json.dump(out, fp, check_circular=False)
+    json_str = json.dumps(out, check_circular=False)
+    if outfile == "-":
+        print(json_str)
+    else:
+        with open(outfile, "w", encoding="UTF-8") as fp:
+            fp.write(json_str)
 
 main()

@@ -4,10 +4,10 @@
 extern crate clap;
 
 use bvh::Bvh;
-use flate2::read::GzDecoder;
 use image_buffer::ImageBuffer;
 use import::{Blender, Collada, Import};
 use std::fmt::{Debug, Formatter};
+use std::process::{Command, Stdio};
 use std::{fs, io::Read, str::FromStr, sync::atomic, sync::Arc, sync::Mutex, thread, time};
 use tracing::raytrace;
 
@@ -63,32 +63,48 @@ fn main() -> Result<(), ErrorMessage> {
         let start_time = time::Instant::now();
 
         let path = matches.value_of("INPUT").unwrap();
-        let mut infile =
-            fs::File::open(path).map_err(|e| format!("File {} cannot be opened: {}", path, e))?;
-        let mut buffer = Vec::new();
-        infile
-            .read_to_end(&mut buffer)
-            .map_err(|e| format!("File {} cannot be read: {}", path, e))?;
 
         let mut scene = if path.ends_with(".dae") {
-            let file_text = String::from_utf8(buffer).map_err(|e| format!("{}", e))?;
+            let mut file_text = String::new();
+            let mut infile = fs::File::open(path)
+                .map_err(|e| format!("File {} cannot be opened: {}", path, e))?;
+            infile
+                .read_to_string(&mut file_text)
+                .map_err(|e| format!("File {} cannot be read: {}", path, e))?;
             Collada { xml: file_text }
                 .import()
                 .map_err(|e| format!("Error during Collada import: {}", e))
+        } else if path.ends_with(".blend") {
+            eprintln!("Starting Blender ...");
+            let result = Command::new("blender")
+                .args(&[path, "-b", "--log-level", "0", "-P", "blender_ray_exporter.py", "--"])
+                .stderr(Stdio::null())
+                .stdout(Stdio::piped())
+                .stdin(Stdio::null())
+                .output()
+                .map_err(|e| format!("Could not execute blender: {}", e))?;
+            eprintln!("Blender done.");
+            if !result.status.success() {
+                Err("Blender export did not exit successfully!".to_owned())
+            } else {
+                let json_text = String::from_utf8(result.stdout)
+                    .map_err(|e| format!("Encoding error: {}", e))?;
+                let json_text = &json_text[json_text.find('{').ok_or("Missing first { in JSON.")?
+                    ..=json_text.rfind('}').ok_or("Missing last } in JSON.")?];
+                Blender::new(&json_text, window_w, window_h)
+                    .import()
+                    .map_err(|e| format!("Error during Blender import: {}", e))
+            }
         } else if path.ends_with(".blend.json") {
-            let file_text = String::from_utf8(buffer).map_err(|e| format!("{}", e))?;
+            let mut file_text = String::new();
+            let mut infile = fs::File::open(path)
+                .map_err(|e| format!("File {} cannot be opened: {}", path, e))?;
+            infile
+                .read_to_string(&mut file_text)
+                .map_err(|e| format!("File {} cannot be read: {}", path, e))?;
             Blender::new(&file_text, window_w, window_h)
                 .import()
                 .map_err(|e| format!("Error during Blender JSON import: {}", e))
-        } else if path.ends_with(".blend.json.gz") {
-            let mut decoder = GzDecoder::new(&buffer[..]);
-            let mut file_text = String::new();
-            decoder
-                .read_to_string(&mut file_text)
-                .map_err(|e| format!("Cannot decompress: {}", e))?;
-            Blender::new(&file_text, window_w, window_h)
-                .import()
-                .map_err(|e| format!("Error during Blender JSON (gz) import: {}", e))
         } else {
             Err("Unknown input format.".to_owned())
         }?;
