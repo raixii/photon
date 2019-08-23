@@ -3,14 +3,14 @@ use crate::math::Vec4;
 use gl::types::*;
 use sdl2::event::Event;
 use sdl2::keyboard::{Keycode, Mod};
-use sdl2::video::SwapInterval;
+use sdl2::video::{GLProfile, SwapInterval};
 use std::ffi::c_void;
 use std::mem::size_of_val;
 use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
 use std::sync::Mutex;
 
 const VERTEX_SHADER: &str = r#"
-    #version 320 es
+    #version 330
 
     in vec2 in_pos;
 
@@ -23,24 +23,22 @@ const VERTEX_SHADER: &str = r#"
 "#;
 
 const FRAGMENT_SHADER: &str = r#"
-    #version 320 es
+    #version 330
     #extension GL_ARB_explicit_uniform_location : enable
 
-    in highp vec2 out_pos;
+    in vec2 out_pos;
 
-    out highp vec4 out_color;
+    out vec4 out_color;
 
     layout(location = 0) uniform sampler2D tex;
-    layout(location = 1) uniform highp float exposure;
+    layout(location = 1) uniform float exposure;
 
     void main() {
-        highp vec3 color = texture(tex, (out_pos + vec2(1.0, 1.0)) * vec2(0.5, -0.5)).xyz;
+        vec3 color = texture(tex, (out_pos + vec2(1.0, 1.0)) * vec2(0.5, -0.5)).xyz;
 
-        color *= exposure; // exposure
-        highp float max_color = max(color.x, max(color.y, color.z));
-        color /= vec3(1.0 + max_color); // tone mapping (Reinhard)
-        color = clamp(color, 0.0, 1.0); // clamp between [0; 1]
-        color = pow(color, vec3(2.2)); // gamma correction
+        color = color * exp(exposure); // exposure
+        color = color / vec3(1.0 + max(color.x, max(color.y, color.z))); // tone mapping (Reinhard)        
+        // gamma correction is enabled in the framebuffer
 
         out_color = vec4(color, 1.0);
     }
@@ -63,6 +61,11 @@ pub fn main_loop(
     let sdl_context = sdl2::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
 
+    let gl_attr = video_subsystem.gl_attr();
+    gl_attr.set_context_profile(GLProfile::Core);
+    gl_attr.set_context_version(3, 3);
+    gl_attr.set_context_flags().forward_compatible().set();
+    gl_attr.set_framebuffer_srgb_compatible(true);
     let mut window = video_subsystem
         .window(&format!("Photon: exposure={:+.1}", exposure), window_w as u32, window_h as u32)
         .position_centered()
@@ -179,9 +182,10 @@ pub fn main_loop(
     };
 
     unsafe {
+        gl::Enable(gl::FRAMEBUFFER_SRGB);
         gl::UseProgram(program);
         gl::Uniform1i(0, 0);
-        gl::Uniform1f(1, 2.0f32.powf(exposure));
+        gl::Uniform1f(1, exposure);
     }
 
     let mut event_pump = sdl_context.event_pump().unwrap();
@@ -199,7 +203,7 @@ pub fn main_loop(
                             1.0
                         };
                     unsafe {
-                        gl::Uniform1f(1, 2.0f32.powf(exposure));
+                        gl::Uniform1f(1, exposure);
                     }
                     window.set_title(&format!("Photon: exposure={:+.1}", exposure)).unwrap();
                 }
@@ -211,7 +215,7 @@ pub fn main_loop(
                             1.0
                         };
                     unsafe {
-                        gl::Uniform1f(1, 2.0f32.powf(exposure));
+                        gl::Uniform1f(1, exposure);
                     }
                     window.set_title(&format!("Photon: exposure={:+.1}", exposure)).unwrap();
                 }
