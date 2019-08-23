@@ -150,6 +150,7 @@ impl<'a> Import for Blender<'a> {
                     scene_lights.push(PointLight {
                         position,
                         color: to_vec3(light.color) * light.power,
+                        radius: light.radius,
                         a: light.attenuation.0,
                         b: light.attenuation.1,
                         c: light.attenuation.2,

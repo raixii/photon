@@ -6,6 +6,7 @@ extern crate clap;
 use bvh::Bvh;
 use image_buffer::ImageBuffer;
 use import::{Blender, Import};
+use rand::SeedableRng;
 use std::fmt::{Debug, Formatter};
 use std::process::{Command, Stdio};
 use std::{fs, io::Read, str::FromStr, sync::atomic, sync::Arc, sync::Mutex, thread, time};
@@ -131,14 +132,21 @@ fn main() -> Result<(), ErrorMessage> {
         let pixel_at = Arc::clone(&pixel_at);
         let image_buffer = Arc::clone(&image_buffer);
         let worker_thread = thread::spawn(move || {
+            let mut rng = rand_pcg::Pcg32::from_seed(rand::random());
             while !want_quit.load(atomic::Ordering::Relaxed) {
                 let my_pixel = pixel_at.fetch_add(1, atomic::Ordering::Relaxed);
                 let (my_x, my_y) = (my_pixel % window_w, my_pixel / window_w);
                 if my_y >= window_h {
                     break;
                 }
-                let color =
-                    raytrace(&scene, my_x as f64, my_y as f64, window_w as f64, window_h as f64);
+                let color = raytrace(
+                    &scene,
+                    &mut rng,
+                    my_x as f64,
+                    my_y as f64,
+                    window_w as f64,
+                    window_h as f64,
+                );
                 if let Some(color) = color {
                     let mut buffer = image_buffer.lock().unwrap();
                     buffer.set_pixel(my_x, my_y, color.xyz1());

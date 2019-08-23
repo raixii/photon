@@ -30,6 +30,7 @@ pub struct Camera {
 pub struct PointLight {
     pub position: Vec3,
     pub color: Vec3,
+    pub radius: f64,
     // Light attenuation ax² + bx + c
     pub a: f64,
     pub b: f64,

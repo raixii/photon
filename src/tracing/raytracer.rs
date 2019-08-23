@@ -1,12 +1,20 @@
 use crate::bvh::{BvhChild, BvhNode};
-use crate::math::{AlmostEq, Vec3, EPS};
+use crate::math::{AlmostEq, Mat4, Vec3, EPS};
 use crate::scene::{Camera, Material, Scene, Triangle};
-use std::f64::{INFINITY, NEG_INFINITY};
+use rand::Rng;
+use std::f64::{consts::PI, INFINITY, NEG_INFINITY};
 
-pub fn raytrace(scene: &Scene, x: f64, y: f64, width: f64, height: f64) -> Option<Vec3> {
+pub fn raytrace<R: Rng>(
+    scene: &Scene,
+    rng: &mut R,
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+) -> Option<Vec3> {
     let colors: Vec<_> = rgss(&scene.camera, x, y, width, height)
         .iter()
-        .map(|ray| handle_ray(scene, scene.camera.position, *ray, 1.0, 1024, 0.0))
+        .map(|ray| handle_ray(scene, rng, scene.camera.position, *ray, 1.0, 1024, 0.0))
         .collect();
     Some(colors.iter().fold(Vec3([0.0; 3]), |acc, val| {
         if let Some(val) = val {
@@ -17,8 +25,9 @@ pub fn raytrace(scene: &Scene, x: f64, y: f64, width: f64, height: f64) -> Optio
     }))
 }
 
-fn handle_ray(
+fn handle_ray<R: Rng>(
     scene: &Scene,
+    rng: &mut R,
     origin: Vec3,
     ray: Vec3,
     lambda_min: f64,
@@ -43,7 +52,7 @@ fn handle_ray(
         let mut result_color = Vec3([0.0; 3]);
 
         if material.metallic > EPS {
-            if let Some(color) = handle_ray(scene, p, r, EPS, max_bounces - 1, path_length) {
+            if let Some(color) = handle_ray(scene, rng, p, r, EPS, max_bounces - 1, path_length) {
                 result_color += material.color * color * material.metallic;
             }
         }
@@ -57,18 +66,34 @@ fn handle_ray(
                     continue;
                 }
 
-                let light_shoot_result = shoot_ray(bvh, p, light_ray, EPS, light_dist);
-                if light_shoot_result.is_some() {
-                    continue;
+                let sample_size = 20;
+                for _ in 0..sample_size {
+                    // sample from circle
+                    let (r, phi) = (
+                        rng.sample(rand::distributions::Uniform::new_inclusive(0.0f64, 1.0)).sqrt()
+                            * point_light.radius,
+                        rng.sample(rand::distributions::Uniform::new(0.0, 2.0 * PI)),
+                    );
+
+                    let circle_radius_vec = Vec3([light_ray.0[1], -light_ray.0[0], light_ray.0[2]]);
+                    let sample_dest = point_light.position
+                        + r * (Mat4::rotation_around_vector(light_ray, phi)
+                            * circle_radius_vec.xyz0())
+                        .xyz();
+
+                    let light_shoot_result = shoot_ray(bvh, p, sample_dest - p, EPS, 1.0);
+                    if light_shoot_result.is_some() {
+                        continue;
+                    }
+
+                    let path_length = path_length + light_dist;
+                    let attenuation = point_light.a * path_length * path_length
+                        + point_light.b * path_length
+                        + point_light.c;
+
+                    result_color += (material.color * point_light.color)
+                        * (cos_n_light_ray * diffuse / attenuation / f64::from(sample_size));
                 }
-
-                let path_length = path_length + light_dist;
-                let attenuation = point_light.a * path_length * path_length
-                    + point_light.b * path_length
-                    + point_light.c;
-
-                result_color += (material.color * point_light.color)
-                    * (cos_n_light_ray * diffuse / attenuation);
             }
         }
 
