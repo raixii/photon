@@ -18,6 +18,7 @@ mod image_buffer;
 mod import;
 mod math;
 mod scene;
+mod simd;
 mod tracing;
 
 struct ErrorMessage(String);

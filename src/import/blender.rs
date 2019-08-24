@@ -159,24 +159,28 @@ impl<'a> Import for Blender<'a> {
                 BlenderObjectData::Mesh(mesh) => {
                     let matrix = to_mat4(mesh.matrix);
                     let nmatrix = matrix.inv().transpose();
-                    let mut triangle = Triangle::new(
+                    let mut triangle = (
                         Vertex { position: Vec3([0.0; 3]), normal: Vec3([0.0; 3]) },
                         Vertex { position: Vec3([0.0; 3]), normal: Vec3([0.0; 3]) },
                         Vertex { position: Vec3([0.0; 3]), normal: Vec3([0.0; 3]) },
-                        scene_materials.len(),
                     );
                     let mut i = 0;
                     for t in mesh.triangles {
                         let vertex = match i {
-                            0 => &mut triangle.a,
-                            1 => &mut triangle.b,
-                            2 => &mut triangle.c,
+                            0 => &mut triangle.0,
+                            1 => &mut triangle.1,
+                            2 => &mut triangle.2,
                             _ => unreachable!(),
                         };
                         vertex.position = (matrix * to_vec3(t.p).xyz1()).xyz();
                         vertex.normal = (nmatrix * to_vec3(t.n).xyz0()).xyz();
                         if i == 2 {
-                            scene_triangles.push(triangle);
+                            scene_triangles.push(Triangle::new(
+                                triangle.0,
+                                triangle.1,
+                                triangle.2,
+                                scene_materials.len(),
+                            ));
                             i = 0;
                         } else {
                             i += 1;
