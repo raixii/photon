@@ -6,7 +6,7 @@ pub struct Scene {
     pub camera: Camera,
     pub triangles: Vec<Triangle>,
     pub point_lights: Vec<PointLight>,
-    pub triangles_bvh: Option<Bvh<Triangle>>,
+    pub triangles_bvh: Option<Bvh<Geometry>>,
     pub materials: Vec<Material>,
 }
 
@@ -26,7 +26,7 @@ pub struct Camera {
     pub down_vector: Vec3,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct PointLight {
     pub position: Vec3,
     pub color: Vec3,
@@ -35,6 +35,14 @@ pub struct PointLight {
     pub a: f64,
     pub b: f64,
     pub c: f64,
+}
+
+impl HasAABB for PointLight {
+    fn calculate_aabb(&self) -> (Vec3, Vec3) {
+        let min = self.position - Vec3([self.radius; 3]);
+        let max = self.position + Vec3([self.radius; 3]);
+        (min, max)
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -82,6 +90,21 @@ impl HasAABB for Triangle {
         let min = self.a.position.min(self.b.position).min(self.c.position);
         let max = self.a.position.max(self.b.position).max(self.c.position);
         (min, max)
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum Geometry {
+    Triangle(Triangle),
+    PointLight(PointLight),
+}
+
+impl HasAABB for Geometry {
+    fn calculate_aabb(&self) -> (Vec3, Vec3) {
+        match self {
+            Geometry::Triangle(t) => t.calculate_aabb(),
+            Geometry::PointLight(pl) => pl.calculate_aabb(),
+        }
     }
 }
 

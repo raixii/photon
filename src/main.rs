@@ -6,6 +6,7 @@ extern crate clap;
 use bvh::Bvh;
 use import::{Blender, Import};
 use rand::SeedableRng;
+use scene::Geometry;
 use std::fmt::{Debug, Formatter};
 use std::io::Read;
 use std::process::{Command, Stdio};
@@ -106,7 +107,17 @@ fn main() -> Result<(), ErrorMessage> {
         eprintln!("Parsing input file: {} ms", (end_time - start_time).as_millis());
 
         let start_time = time::Instant::now();
-        let bvh = Bvh::new(&scene.triangles);
+        let geometry = {
+            let mut geometry = Vec::new();
+            for t in &scene.triangles {
+                geometry.push(Geometry::Triangle(*t));
+            }
+            for pl in &scene.point_lights {
+                geometry.push(Geometry::PointLight(*pl));
+            }
+            geometry
+        };
+        let bvh = Bvh::new(&geometry);
         scene.triangles_bvh = Some(bvh);
         let end_time = time::Instant::now();
         eprintln!("Building BVH: {} ms", (end_time - start_time).as_millis());
