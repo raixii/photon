@@ -4,17 +4,18 @@
 extern crate clap;
 
 use bvh::Bvh;
-use image_buffer::ImageBuffer;
 use import::{Blender, Import};
 use rand::SeedableRng;
 use std::fmt::{Debug, Formatter};
+use std::io::Read;
 use std::process::{Command, Stdio};
-use std::{fs, io::Read, str::FromStr, sync::atomic, sync::Arc, sync::Mutex, thread, time};
+use std::str::FromStr;
+use std::sync::{atomic, mpsc, Arc};
+use std::{fs, thread, time};
 use tracing::raytrace;
 
 mod bvh;
 mod gui;
-mod image_buffer;
 mod import;
 mod math;
 mod scene;
@@ -59,7 +60,7 @@ fn main() -> Result<(), ErrorMessage> {
     let thread_count = FromStr::from_str(matches.value_of("threads").unwrap()).unwrap();
     let window_w = FromStr::from_str(matches.value_of("width").unwrap()).unwrap();
     let window_h = FromStr::from_str(matches.value_of("height").unwrap()).unwrap();
-    let exposure = FromStr::from_str(matches.value_of("exposure").unwrap()).unwrap();
+    let exposure: f64 = FromStr::from_str(matches.value_of("exposure").unwrap()).unwrap();
 
     let scene = Arc::new({
         let start_time = time::Instant::now();
@@ -113,15 +114,14 @@ fn main() -> Result<(), ErrorMessage> {
         scene
     });
 
-    let image_buffer = Arc::new(Mutex::new(ImageBuffer::new(window_w, window_h)));
+    let (sender, receiver) = mpsc::channel();
     let want_quit = Arc::new(atomic::AtomicBool::new(false));
     let pixel_at = Arc::new(atomic::AtomicUsize::new(0));
 
     let window_thread = {
-        let image_buffer = Arc::clone(&image_buffer);
         let want_quit = Arc::clone(&want_quit);
         thread::spawn(move || {
-            gui::main_loop(window_w, window_h, exposure, &image_buffer, &want_quit);
+            gui::main_loop(window_w, window_h, exposure, receiver, &want_quit);
         })
     };
 
@@ -131,7 +131,7 @@ fn main() -> Result<(), ErrorMessage> {
         let scene = Arc::clone(&scene);
         let want_quit = Arc::clone(&want_quit);
         let pixel_at = Arc::clone(&pixel_at);
-        let image_buffer = Arc::clone(&image_buffer);
+        let sender = sender.clone();
         let worker_thread = thread::spawn(move || {
             let mut rng = rand_pcg::Pcg32::from_seed(rand::random());
             while !want_quit.load(atomic::Ordering::Relaxed) {
@@ -149,8 +149,7 @@ fn main() -> Result<(), ErrorMessage> {
                     window_h as f64,
                 );
                 if let Some(color) = color {
-                    let mut buffer = image_buffer.lock().unwrap();
-                    buffer.set_pixel(my_x, my_y, color.xyz1());
+                    sender.send((my_x, my_y, color.xyz1())).unwrap();
                 }
             }
         });
