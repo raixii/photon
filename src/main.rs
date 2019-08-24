@@ -47,7 +47,7 @@ fn main() -> Result<(), ErrorMessage> {
         (author: crate_authors!("; "))
         (about: crate_description!())
         (@arg INPUT: +required "DAE file to render")
-        (@arg OUTPUT: +required "PNG file to write")
+        (@arg OUTPUT: "PNG file to write")
         (@arg headless: -H --headless "Do not show the GUI")
         (@arg threads: -t --threads +takes_value default_value(&cpu_count_str) "Number of worker threads")
         (@arg exposure: -e --exposure +takes_value default_value("0.0") "Exposure multiplier of the camera given as a power of two")
