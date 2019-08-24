@@ -1,4 +1,3 @@
-use crate::image_buffer::ImageBuffer;
 use crate::math::Vec4;
 use gl::types::*;
 use sdl2::event::Event;
@@ -6,8 +5,9 @@ use sdl2::keyboard::{Keycode, Mod};
 use sdl2::video::{GLProfile, SwapInterval};
 use std::ffi::c_void;
 use std::mem::size_of_val;
-use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
-use std::sync::Mutex;
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering::Relaxed;
+use std::sync::mpsc;
 
 const VERTEX_SHADER: &str = r#"
     #version 330
@@ -50,12 +50,11 @@ pub fn main_loop(
     window_w: usize,
     window_h: usize,
     exposure: f64,
-    image: &Mutex<ImageBuffer>,
+    receiver: mpsc::Receiver<(usize, usize, Vec4)>,
     want_quit: &AtomicBool,
 ) {
     let mut exposure = exposure as f32;
     let mut display_buffer = vec![0.0f32; window_w * window_h * 3];
-    let mut buffer_version = std::usize::MAX;
     let mut buffer_changed = true;
 
     let sdl_context = sdl2::init().unwrap();
@@ -223,19 +222,12 @@ pub fn main_loop(
             }
         }
 
-        {
-            let image = image.lock().unwrap();
-            if buffer_version != image.version() {
-                for (i, &Vec4([r, g, b, _a])) in image.get_buffer().iter().enumerate() {
-                    display_buffer[3 * i] = r as f32;
-                    display_buffer[3 * i + 1] = g as f32;
-                    display_buffer[3 * i + 2] = b as f32;
-                }
-                buffer_version = image.version();
-                buffer_changed = true;
-            }
+        while let Ok((x, y, Vec4([r, g, b, _a]))) = receiver.try_recv() {
+            buffer_changed = true;
+            display_buffer[(y * window_w + x) * 3] = r as f32;
+            display_buffer[(y * window_w + x) * 3 + 1] = g as f32;
+            display_buffer[(y * window_w + x) * 3 + 2] = b as f32;
         }
-
         if buffer_changed {
             unsafe {
                 gl::TexImage2D(
