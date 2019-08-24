@@ -162,10 +162,9 @@ fn shoot_ray<'a>(
     ray_origin: Vec3,
     ray: Vec3,
     min_dist: f64,
-    max_dist: f64,
+    mut max_dist: f64,
     todo_stack: &mut Vec<BvhNode<'a, Triangle>>,
 ) -> Option<RayShootResult<'a>> {
-    let mut result_lambda = INFINITY;
     let mut result: Option<RayShootResult> = None;
 
     let ray_origin_x = unsafe { _mm256_broadcast_sd(&ray_origin.0[0]) };
@@ -319,14 +318,14 @@ fn shoot_ray<'a>(
                             continue;
                         }
 
-                        if lambda < result_lambda {
+                        if lambda < max_dist {
                             result = Some(RayShootResult {
                                 lambda,
                                 triangle,
                                 barycentric_coords: Vec3([alpha, beta, gamma]),
                                 hit_pos: intersection,
                             });
-                            result_lambda = lambda;
+                            max_dist = lambda;
                         }
                     }
                 }
