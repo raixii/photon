@@ -40,6 +40,14 @@ struct Node<T: HasAABB + Debug + Clone> {
     value: [Value<T>; 4],
 }
 
+impl<T: HasAABB + Debug + Clone> Node<T> {
+    fn get_aabb(&self, i: usize) -> (Vec3, Vec3) {
+        let slot_aabb_min = Vec3([self.aabb_min_x[i], self.aabb_min_y[i], self.aabb_min_z[i]]);
+        let slot_aabb_max = Vec3([self.aabb_max_x[i], self.aabb_max_y[i], self.aabb_max_z[i]]);
+        (slot_aabb_min, slot_aabb_max)
+    }
+}
+
 #[derive(Debug)]
 pub struct Bvh<T: HasAABB + Debug + Clone> {
     // root = 0
@@ -212,23 +220,17 @@ fn swap_tree_rec<T: HasAABB + Debug + Clone>(nodes: &mut [Node<T>], from: usize,
     }
 }
 
-fn calc_metric<T: HasAABB + Debug + Clone>(a: &Node<T>, ai: usize, b: &Node<T>, bi: usize) -> f64 {
-    let min = Vec3([a.aabb_min_x[ai], a.aabb_min_y[ai], a.aabb_min_z[ai]]).min(Vec3([
-        b.aabb_min_x[bi],
-        b.aabb_min_y[bi],
-        b.aabb_min_z[bi],
-    ]));
-    let max = Vec3([a.aabb_max_x[ai], a.aabb_max_y[ai], a.aabb_max_z[ai]]).max(Vec3([
-        b.aabb_max_x[bi],
-        b.aabb_max_y[bi],
-        b.aabb_max_z[bi],
-    ]));
+fn calc_metric((a_min, a_max): (Vec3, Vec3), (b_min, b_max): (Vec3, Vec3)) -> f64 {
+    let min = a_min.min(b_min);
+    let max = a_max.max(b_max);
     let v = max - min;
     v.x() * v.y() + v.x() * v.z() + v.y() * v.z()
 }
 
 fn sort_by_metric<T: HasAABB + Debug + Clone>(nodes: &mut [Node<T>], from: usize, to: usize) {
     for slot in from..to {
+        let mut current_aabb = nodes[slot].get_aabb(0);
+
         for neighbour in 1..4 {
             let mut min_metric = std::f64::INFINITY;
             let mut min_i = 0;
@@ -242,7 +244,8 @@ fn sort_by_metric<T: HasAABB + Debug + Clone>(nodes: &mut [Node<T>], from: usize
                         assert!(i == to - 1);
                         continue;
                     }
-                    let metric = calc_metric(&nodes[slot], 0, &nodes[i], j);
+                    let candidate_aabb = nodes[i].get_aabb(j);
+                    let metric = calc_metric(current_aabb, candidate_aabb);
                     if metric < min_metric {
                         min_metric = metric;
                         min_i = i;
@@ -252,6 +255,9 @@ fn sort_by_metric<T: HasAABB + Debug + Clone>(nodes: &mut [Node<T>], from: usize
             }
 
             if min_metric.is_finite() {
+                current_aabb.0 = current_aabb.0.min(nodes[min_i].get_aabb(min_j).0);
+                current_aabb.1 = current_aabb.1.max(nodes[min_i].get_aabb(min_j).1);
+
                 swap_tree_rec(nodes, slot * 4 + neighbour + 1, min_i * 4 + min_j + 1);
                 if slot == min_i {
                     let node = &mut nodes[slot];
