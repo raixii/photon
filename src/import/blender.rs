@@ -2,7 +2,7 @@ use super::{Import, ImportError};
 use crate::math::{AlmostEq, Mat4, Vec3, Vec4};
 use crate::scene::{Camera, Material, PointLight, Scene, Triangle, Vertex};
 use serde::Deserialize;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 pub struct Blender<'a> {
     string: &'a str,
@@ -18,7 +18,7 @@ impl<'a> Blender<'a> {
 
 #[derive(Deserialize, Debug)]
 struct BlenderJson {
-    objects: HashMap<String, BlenderObject>,
+    objects: BTreeMap<String, BlenderObject>,
 }
 
 #[derive(Deserialize, Debug)]
