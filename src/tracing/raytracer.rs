@@ -15,19 +15,8 @@ pub fn raytrace<R: Rng>(
     height: f64,
 ) -> Option<Vec3> {
     let mut todo_cache = Vec::new();
-    let colors: Vec<_> = rgss(&scene.camera, x, y, width, height)
-        .iter()
-        .map(|ray| {
-            handle_ray(scene, rng, scene.camera.position, *ray, 1.0, 1024, 0.0, &mut todo_cache)
-        })
-        .collect();
-    Some(colors.iter().fold(Vec3([0.0; 3]), |acc, val| {
-        if let Some(val) = val {
-            acc + (*val / (colors.len() as f64))
-        } else {
-            acc
-        }
-    }))
+    let ray = calc_ray(&scene.camera, x, y, width, height);
+    handle_ray(scene, rng, scene.camera.position, ray, 1.0, 1024, 0.0, &mut todo_cache)
 }
 
 fn handle_ray<'a, R: Rng>(
@@ -149,15 +138,6 @@ fn calc_ray(camera: &Camera, x: f64, y: f64, width: f64, height: f64) -> Vec3 {
             + camera.down_vector * (p_y + offset_y)
     };
     point_on_plane - camera.position
-}
-
-fn rgss(camera: &Camera, x: f64, y: f64, width: f64, height: f64) -> Vec<Vec3> {
-    let offests = [(0.125, -0.375), (0.375, 0.125), (-0.125, 0.375), (-0.375, -0.125)];
-
-    offests
-        .iter()
-        .map(|offset| calc_ray(camera, x + offset.0, y + offset.1, width, height))
-        .collect()
 }
 
 struct RayShootResult {
