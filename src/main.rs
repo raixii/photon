@@ -173,9 +173,12 @@ fn main() -> Result<(), ErrorMessage> {
 
     let window_thread = {
         let want_quit = Arc::clone(&want_quit);
-        thread::spawn(move || {
-            gui::main_loop(window_w, window_h, exposure, pixel_receiver, &want_quit);
-        })
+        thread::Builder::new()
+            .name("GUI".to_owned())
+            .spawn(move || {
+                gui::main_loop(window_w, window_h, exposure, pixel_receiver, &want_quit);
+            })
+            .unwrap()
     };
 
     let start_time = time::Instant::now();
@@ -185,64 +188,68 @@ fn main() -> Result<(), ErrorMessage> {
         let want_quit = Arc::clone(&want_quit);
         let render_receiver = render_receiver.clone();
         let pixel_sender = pixel_sender.clone();
-        let worker_thread = thread::spawn(move || {
-            let mut rng =
-                rand_pcg::Pcg32::from_seed(seed.overflowing_mul(t as u128 + 123).0.to_be_bytes());
-            while let Ok((my_x, my_y)) = render_receiver.try_recv() {
-                if want_quit.load(atomic::Ordering::Relaxed) {
-                    break;
-                }
-
-                let (render_x, render_y) = if antialiasing == 0 {
-                    // Use pixel center
-                    (my_x as f64 + 0.5, my_y as f64 + 0.5)
-                } else {
-                    // Use RGSS around the second-to-last (!!!) subpixel center
-
-                    // First find the subpixel center
-                    // pixel_left + subpixel_index * subpixel_size + subpixel_size / 2
-                    // Hint: For x = 1 and aa = 1 this leads to 0.75.
-                    //       For x = 0 and aa = 1 this leads to 0.25.
-                    //       For x = 0 and aa = 2 this leads to 0.125.
-                    //       For x = 1 and aa = 2 this leads to 0.25.
-                    let subpixel_size = 1.0 / f64::from(1 << antialiasing);
-                    let rgss_center_x = (my_x >> antialiasing) as f64
-                        + (my_x & ((1 << antialiasing) - 1)) as f64 * subpixel_size
-                        + subpixel_size / 2.0;
-                    let rgss_center_y = (my_y >> antialiasing) as f64
-                        + (my_y & ((1 << antialiasing) - 1)) as f64 * subpixel_size
-                        + subpixel_size / 2.0;
-
-                    // Pick one offset for each of the four remaining subpixels. Note that these
-                    // offsets are relative to the subpixel center, *not* relative to the
-                    // second-to-last subpixel center.
-                    let (rgss_offset_x, rgss_offset_y) = [
-                        (-1.0 / 8.0, 1.0 / 8.0),  // x % 2 == 0 && y % 2 == 0  =>  top-left
-                        (-1.0 / 8.0, -1.0 / 8.0), // x % 2 == 1 && y % 2 == 0  =>  top-right
-                        (1.0 / 8.0, 1.0 / 8.0),   // x % 2 == 0 && y % 2 == 1  =>  bottom-left
-                        (1.0 / 8.0, -1.0 / 8.0),  // x % 2 == 1 && y % 2 == 1  =>  bottom-right
-                    ][(my_x % 2) + 2 * (my_y % 2)];
-
-                    // Divide the offsets to the correct subpixel size
-                    let rgss_offset_x = rgss_offset_x / f64::from(1 << (antialiasing - 1));
-                    let rgss_offset_y = rgss_offset_y / f64::from(1 << (antialiasing - 1));
-
-                    (rgss_center_x + rgss_offset_x, rgss_center_y + rgss_offset_y)
-                };
-
-                let color = raytrace(
-                    &scene,
-                    &mut rng,
-                    render_x,
-                    render_y,
-                    window_w as f64,
-                    window_h as f64,
+        let worker_thread = thread::Builder::new()
+            .name(format!("Worker {}", t + 1))
+            .spawn(move || {
+                let mut rng = rand_pcg::Pcg32::from_seed(
+                    seed.overflowing_mul(t as u128 + 123).0.to_be_bytes(),
                 );
-                let color = color.unwrap_or(Vec3([0.0, 0.0, 0.0])).xyz1();
+                while let Ok((my_x, my_y)) = render_receiver.try_recv() {
+                    if want_quit.load(atomic::Ordering::Relaxed) {
+                        break;
+                    }
 
-                pixel_sender.send((my_x >> antialiasing, my_y >> antialiasing, color)).unwrap();
-            }
-        });
+                    let (render_x, render_y) = if antialiasing == 0 {
+                        // Use pixel center
+                        (my_x as f64 + 0.5, my_y as f64 + 0.5)
+                    } else {
+                        // Use RGSS around the second-to-last (!!!) subpixel center
+
+                        // First find the subpixel center
+                        // pixel_left + subpixel_index * subpixel_size + subpixel_size / 2
+                        // Hint: For x = 1 and aa = 1 this leads to 0.75.
+                        //       For x = 0 and aa = 1 this leads to 0.25.
+                        //       For x = 0 and aa = 2 this leads to 0.125.
+                        //       For x = 1 and aa = 2 this leads to 0.25.
+                        let subpixel_size = 1.0 / f64::from(1 << antialiasing);
+                        let rgss_center_x = (my_x >> antialiasing) as f64
+                            + (my_x & ((1 << antialiasing) - 1)) as f64 * subpixel_size
+                            + subpixel_size / 2.0;
+                        let rgss_center_y = (my_y >> antialiasing) as f64
+                            + (my_y & ((1 << antialiasing) - 1)) as f64 * subpixel_size
+                            + subpixel_size / 2.0;
+
+                        // Pick one offset for each of the four remaining subpixels. Note that these
+                        // offsets are relative to the subpixel center, *not* relative to the
+                        // second-to-last subpixel center.
+                        let (rgss_offset_x, rgss_offset_y) = [
+                            (-1.0 / 8.0, 1.0 / 8.0),  // x % 2 == 0 && y % 2 == 0  =>  top-left
+                            (-1.0 / 8.0, -1.0 / 8.0), // x % 2 == 1 && y % 2 == 0  =>  top-right
+                            (1.0 / 8.0, 1.0 / 8.0),   // x % 2 == 0 && y % 2 == 1  =>  bottom-left
+                            (1.0 / 8.0, -1.0 / 8.0),  // x % 2 == 1 && y % 2 == 1  =>  bottom-right
+                        ][(my_x % 2) + 2 * (my_y % 2)];
+
+                        // Divide the offsets to the correct subpixel size
+                        let rgss_offset_x = rgss_offset_x / f64::from(1 << (antialiasing - 1));
+                        let rgss_offset_y = rgss_offset_y / f64::from(1 << (antialiasing - 1));
+
+                        (rgss_center_x + rgss_offset_x, rgss_center_y + rgss_offset_y)
+                    };
+
+                    let color = raytrace(
+                        &scene,
+                        &mut rng,
+                        render_x,
+                        render_y,
+                        window_w as f64,
+                        window_h as f64,
+                    );
+                    let color = color.unwrap_or(Vec3([0.0, 0.0, 0.0])).xyz1();
+
+                    pixel_sender.send((my_x >> antialiasing, my_y >> antialiasing, color)).unwrap();
+                }
+            })
+            .unwrap();
         worker_threads.push(worker_thread);
     }
     for worker_thread in worker_threads {

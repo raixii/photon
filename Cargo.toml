@@ -5,6 +5,9 @@ authors = ["Michael", "Patrick"]
 edition = "2018"
 description = "Traces rays!"
 
+[profile.release]
+debug = true
+
 [dependencies]
 # Command line
 clap = "2.33.0"
