@@ -126,17 +126,17 @@ impl<T: HasAABB + Clone + Debug> Bvh<T> {
         let leafes_start_index = (4usize.pow(layer_count - 1) - 1) / 3;
         let leafes_end_index =
             leafes_start_index + objects.len() / 4 + if objects.len() % 4 == 0 { 0 } else { 1 };
-        for i in 0..objects.len() {
+        for (i, object) in objects.iter().enumerate() {
             let node_i = i / 4 + leafes_start_index;
             let leaf_i = i % 4;
-            let (aabb_min, aabb_max) = objects[i].calculate_aabb();
+            let (aabb_min, aabb_max) = object.calculate_aabb();
             nodes[node_i].aabb_min_x[leaf_i] = aabb_min.0[0];
             nodes[node_i].aabb_min_y[leaf_i] = aabb_min.0[1];
             nodes[node_i].aabb_min_z[leaf_i] = aabb_min.0[2];
             nodes[node_i].aabb_max_x[leaf_i] = aabb_max.0[0];
             nodes[node_i].aabb_max_y[leaf_i] = aabb_max.0[1];
             nodes[node_i].aabb_max_z[leaf_i] = aabb_max.0[2];
-            nodes[node_i].value[leaf_i] = Value::Leaf(objects[i].clone());
+            nodes[node_i].value[leaf_i] = Value::Leaf(object.clone());
         }
         sort_by_metric(&mut nodes, leafes_start_index, leafes_end_index);
 
@@ -235,20 +235,20 @@ fn sort_by_metric<T: HasAABB + Debug + Clone>(nodes: &mut [Node<T>], from: usize
             let mut min_metric = std::f64::INFINITY;
             let mut min_i = 0;
             let mut min_j = 0;
-            for i in slot..to {
+            for (i, node) in nodes[slot..to].iter().enumerate() {
                 for j in 0..4 {
-                    if i == slot && j < neighbour {
+                    if i == 0 && j < neighbour {
                         continue;
                     }
-                    if nodes[i].value[j].is_empty() {
-                        assert!(i == to - 1);
+                    if node.value[j].is_empty() {
+                        assert!(i + slot == to - 1);
                         continue;
                     }
-                    let candidate_aabb = nodes[i].get_aabb(j);
+                    let candidate_aabb = node.get_aabb(j);
                     let metric = calc_metric(current_aabb, candidate_aabb);
                     if metric < min_metric {
                         min_metric = metric;
-                        min_i = i;
+                        min_i = i + slot;
                         min_j = j;
                     }
                 }

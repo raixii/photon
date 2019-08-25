@@ -1,6 +1,6 @@
 use crate::bvh::{BvhChild, BvhNode};
 use crate::math::{AlmostEq, Mat4, Plane, Vec3, EPS};
-use crate::scene::{Camera, Geometry, Material, Scene, Triangle};
+use crate::scene::{Camera, Geometry, Material, Scene};
 use rand::Rng;
 use std::arch::x86_64::*;
 use std::f64::consts::PI;
@@ -174,7 +174,7 @@ impl RayShootResult {
                 + t.b().normal * self.barycentric_coords.y()
                 + t.c().normal * self.barycentric_coords.z())
             .normalize(),
-            Geometry::PointLight(pl) => unimplemented!(),
+            Geometry::PointLight(_pl) => unimplemented!(),
         }
     }
 }
@@ -300,8 +300,8 @@ fn shoot_ray<'a>(
             std::mem::transmute::<__m256i, [u64; 4]>(result)
         };
 
-        for i in 0..4 {
-            if hits[i] == 0 {
+        for (i, hit) in hits.iter().enumerate() {
+            if *hit == 0 {
                 match bvh.value(i) {
                     BvhChild::Empty => {}
                     BvhChild::Subtree(sub_bvh) => {
