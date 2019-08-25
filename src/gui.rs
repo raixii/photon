@@ -41,7 +41,7 @@ const FRAGMENT_SHADER: &str = r#"
             }
         }
 
-        vec3 color = colora.xyz;
+        vec3 color = colora.xyz / colora.w;
         color = color * exp(exposure); // exposure
         color = color / vec3(1.0 + max(color.x, max(color.y, color.z))); // tone mapping (Reinhard)        
         // gamma correction is enabled in the framebuffer
@@ -228,12 +228,12 @@ pub fn main_loop(
             }
         }
 
-        while let Ok((x, y, Vec4([r, g, b, _a]))) = receiver.try_recv() {
+        while let Ok((x, y, Vec4([r, g, b, a]))) = receiver.try_recv() {
             buffer_changed = true;
-            display_buffer[(y * window_w + x) * 4] = r as f32;
-            display_buffer[(y * window_w + x) * 4 + 1] = g as f32;
-            display_buffer[(y * window_w + x) * 4 + 2] = b as f32;
-            display_buffer[(y * window_w + x) * 4 + 3] = 1.0;
+            display_buffer[(y * window_w + x) * 4] += r as f32;
+            display_buffer[(y * window_w + x) * 4 + 1] += g as f32;
+            display_buffer[(y * window_w + x) * 4 + 2] += b as f32;
+            display_buffer[(y * window_w + x) * 4 + 3] += a as f32;
         }
         if buffer_changed {
             unsafe {
