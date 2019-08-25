@@ -6,7 +6,6 @@ extern crate clap;
 use bvh::Bvh;
 use import::{Blender, Import};
 use math::Vec4;
-use rand::seq::SliceRandom;
 use rand::SeedableRng;
 use scene::Geometry;
 use std::cmp::Ordering;
