@@ -308,12 +308,15 @@ fn shoot_ray<'a>(
                         }
 
                         if lambda < max_dist {
-                            result = Some(RayShootResult {
+                            let sr = RayShootResult {
                                 geometry: Geometry::Triangle(*triangle),
                                 barycentric_coords: Vec3([alpha, beta, gamma]),
                                 hit_pos: intersection,
-                            });
-                            max_dist = lambda;
+                            };
+                            if sr.calculate_normal().dot(-ray.normalize()) > EPS {
+                                result = Some(sr);
+                                max_dist = lambda;
+                            }
                         }
                     }
                     BvhChild::Value(Geometry::PointLight(pl)) => {
