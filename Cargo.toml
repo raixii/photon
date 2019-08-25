@@ -22,6 +22,9 @@ vecmath = "1.0.0"
 rand = "0.7.0"
 rand_pcg = "0.2.0"
 
+# Threading
+crossbeam-channel = "0.3.9"
+
 # Parsing
 sxd-xpath = "0.4.2"
 sxd-document = "0.3.2"

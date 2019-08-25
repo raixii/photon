@@ -7,17 +7,13 @@ use std::ffi::c_void;
 use std::mem::size_of_val;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering::Relaxed;
-use std::sync::mpsc;
 
 const VERTEX_SHADER: &str = r#"
     #version 330
 
     in vec2 in_pos;
 
-    out vec2 out_pos;
-
     void main() {
-        out_pos = in_pos;
         gl_Position = vec4(in_pos, 0.0, 1.0);
     }
 "#;
@@ -26,16 +22,26 @@ const FRAGMENT_SHADER: &str = r#"
     #version 330
     #extension GL_ARB_explicit_uniform_location : enable
 
-    in vec2 out_pos;
-
     out vec4 out_color;
 
     layout(location = 0) uniform sampler2D tex;
     layout(location = 1) uniform float exposure;
 
     void main() {
-        vec3 color = texture(tex, (out_pos + vec2(1.0, 1.0)) * vec2(0.5, -0.5)).xyz;
+        ivec2 resolution = textureSize(tex, 0);
+        ivec2 pixel = ivec2(gl_FragCoord.x, resolution.y - int(gl_FragCoord.y) - 1);
 
+        vec4 colora = vec4(0.0);
+        for (int power_of_two = 0;; ++power_of_two) {
+            // t = floor(p / 2^i) * 2^i
+            ivec2 tex_pixel = (pixel >> ivec2(power_of_two)) << ivec2(power_of_two);
+            colora = texelFetch(tex, tex_pixel, 0);
+            if (colora.a != 0.0 || tex_pixel == ivec2(0, 0)) {
+                break;
+            }
+        }
+
+        vec3 color = colora.xyz;
         color = color * exp(exposure); // exposure
         color = color / vec3(1.0 + max(color.x, max(color.y, color.z))); // tone mapping (Reinhard)        
         // gamma correction is enabled in the framebuffer
@@ -50,11 +56,11 @@ pub fn main_loop(
     window_w: usize,
     window_h: usize,
     exposure: f64,
-    receiver: mpsc::Receiver<(usize, usize, Vec4)>,
+    receiver: crossbeam_channel::Receiver<(usize, usize, Vec4)>,
     want_quit: &AtomicBool,
 ) {
     let mut exposure = exposure as f32;
-    let mut display_buffer = vec![0.0f32; window_w * window_h * 3];
+    let mut display_buffer = vec![0.0f32; window_w * window_h * 4];
     let mut buffer_changed = true;
 
     let sdl_context = sdl2::init().unwrap();
@@ -169,11 +175,11 @@ pub fn main_loop(
         gl::TexImage2D(
             gl::TEXTURE_2D,
             0,
-            gl::RGB32F as GLint,
+            gl::RGBA32F as GLint,
             window_w as GLsizei,
             window_h as GLsizei,
             0,
-            gl::RGB,
+            gl::RGBA,
             gl::FLOAT,
             display_buffer.as_ptr() as *const c_void,
         );
@@ -224,20 +230,21 @@ pub fn main_loop(
 
         while let Ok((x, y, Vec4([r, g, b, _a]))) = receiver.try_recv() {
             buffer_changed = true;
-            display_buffer[(y * window_w + x) * 3] = r as f32;
-            display_buffer[(y * window_w + x) * 3 + 1] = g as f32;
-            display_buffer[(y * window_w + x) * 3 + 2] = b as f32;
+            display_buffer[(y * window_w + x) * 4] = r as f32;
+            display_buffer[(y * window_w + x) * 4 + 1] = g as f32;
+            display_buffer[(y * window_w + x) * 4 + 2] = b as f32;
+            display_buffer[(y * window_w + x) * 4 + 3] = 1.0;
         }
         if buffer_changed {
             unsafe {
                 gl::TexImage2D(
                     gl::TEXTURE_2D,
                     0,
-                    gl::RGB32F as GLint,
+                    gl::RGBA32F as GLint,
                     window_w as GLsizei,
                     window_h as GLsizei,
                     0,
-                    gl::RGB,
+                    gl::RGBA,
                     gl::FLOAT,
                     display_buffer.as_ptr() as *const c_void,
                 );

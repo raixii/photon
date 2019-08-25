@@ -5,13 +5,16 @@ extern crate clap;
 
 use bvh::Bvh;
 use import::{Blender, Import};
+use math::Vec4;
+use rand::seq::SliceRandom;
 use rand::SeedableRng;
 use scene::Geometry;
+use std::cmp::Ordering;
 use std::fmt::{Debug, Formatter};
 use std::io::Read;
 use std::process::{Command, Stdio};
 use std::str::FromStr;
-use std::sync::{atomic, mpsc, Arc};
+use std::sync::{atomic, Arc};
 use std::{fs, thread, time};
 use tracing::raytrace;
 
@@ -125,14 +128,62 @@ fn main() -> Result<(), ErrorMessage> {
         scene
     });
 
-    let (sender, receiver) = mpsc::channel();
+    let (pixel_sender, pixel_receiver) = crossbeam_channel::unbounded();
     let want_quit = Arc::new(atomic::AtomicBool::new(false));
-    let pixel_at = Arc::new(atomic::AtomicUsize::new(0));
+    let (render_sender, render_receiver) = crossbeam_channel::unbounded();
+
+    {
+        let mut positions = vec![];
+        for x in 0..window_w {
+            for y in 0..window_h {
+                positions.push((x, y));
+            }
+        }
+        positions.sort_by(|a, b| {
+            let a_zeros = a.0.trailing_zeros().min(a.1.trailing_zeros());
+            let b_zeros = b.0.trailing_zeros().min(b.1.trailing_zeros());
+            if a_zeros > b_zeros {
+                Ordering::Less
+            } else if a_zeros < b_zeros {
+                Ordering::Greater
+            } else if a.0 < b.0 {
+                Ordering::Less
+            } else if a.0 > b.0 {
+                Ordering::Greater
+            } else if a.1 < b.1 {
+                Ordering::Less
+            } else if a.1 > b.1 {
+                Ordering::Greater
+            } else {
+                Ordering::Equal
+            }
+        });
+
+        // positions.shuffle(&mut rng);
+        // let x_n_max = (window_h as f64).log(2.0).ceil() as u32;
+        // let y_n_max = (window_w as f64).log(2.0).ceil() as u32;
+        // for n in (0..x_n_max).rev() {
+        //     let pow = 1 << n;
+        //     let mut x = 0;
+        //     let mut y = 0;
+        //     while x < window_h {
+        //         while y < window_w {
+
+        //         }
+        //         x += pow;
+        //     }
+        // }
+
+        assert_eq!(positions.len(), window_w * window_h);
+        for p in positions {
+            render_sender.send(p).unwrap();
+        }
+    }
 
     let window_thread = {
         let want_quit = Arc::clone(&want_quit);
         thread::spawn(move || {
-            gui::main_loop(window_w, window_h, exposure, receiver, &want_quit);
+            gui::main_loop(window_w, window_h, exposure, pixel_receiver, &want_quit);
         })
     };
 
@@ -141,14 +192,12 @@ fn main() -> Result<(), ErrorMessage> {
     for _t in 0..thread_count {
         let scene = Arc::clone(&scene);
         let want_quit = Arc::clone(&want_quit);
-        let pixel_at = Arc::clone(&pixel_at);
-        let sender = sender.clone();
+        let render_receiver = render_receiver.clone();
+        let pixel_sender = pixel_sender.clone();
         let worker_thread = thread::spawn(move || {
             let mut rng = rand_pcg::Pcg32::from_seed(rand::random());
-            while !want_quit.load(atomic::Ordering::Relaxed) {
-                let my_pixel = pixel_at.fetch_add(1, atomic::Ordering::Relaxed);
-                let (my_x, my_y) = (my_pixel % window_w, my_pixel / window_w);
-                if my_y >= window_h {
+            while let Ok((my_x, my_y)) = render_receiver.try_recv() {
+                if want_quit.load(atomic::Ordering::Relaxed) {
                     break;
                 }
                 let color = raytrace(
@@ -160,7 +209,9 @@ fn main() -> Result<(), ErrorMessage> {
                     window_h as f64,
                 );
                 if let Some(color) = color {
-                    sender.send((my_x, my_y, color.xyz1())).unwrap();
+                    pixel_sender.send((my_x, my_y, color.xyz1())).unwrap();
+                } else {
+                    pixel_sender.send((my_x, my_y, Vec4([0.0, 0.0, 0.0, 1.0]))).unwrap();
                 }
             }
         });
