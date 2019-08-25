@@ -17,9 +17,7 @@ pub fn raytrace<R: Rng>(
     let mut todo_cache = Vec::new();
     let colors: Vec<_> = rgss(&scene.camera, x, y, width, height)
         .iter()
-        .map(|ray| {
-            handle_ray(scene, rng, scene.camera.position, *ray, 1.0, 1024, 0.0, &mut todo_cache)
-        })
+        .map(|ray| handle_ray(scene, rng, scene.camera.position, *ray, 1.0, 1024, &mut todo_cache))
         .collect();
     Some(colors.iter().fold(Vec3([0.0; 3]), |acc, val| {
         if let Some(val) = val {
@@ -37,20 +35,17 @@ fn handle_ray<'a, R: Rng>(
     ray: Vec3,
     lambda_min: f64,
     max_bounces: usize,
-    path_length: f64,
     todo_cache: &mut Vec<BvhNode<'a, Geometry>>,
 ) -> Option<Vec3> {
     assert!(max_bounces != std::usize::MAX);
     let bvh = scene.triangles_bvh.as_ref().unwrap().root();
 
     if let Some(shoot_result) = shoot_ray(bvh, origin, ray, lambda_min, INFINITY, todo_cache) {
-        let (ray, ray_len) = ray.normalize_len();
-        let path_length = path_length + ray_len * shoot_result.lambda;
         match shoot_result.geometry {
             Geometry::Triangle(triangle) => {
                 let n = shoot_result.calculate_normal();
                 let p = shoot_result.hit_pos;
-                let r = reflect_ray(ray, n);
+                let r = reflect_ray(ray.normalize(), n);
                 let material = if max_bounces == 0 {
                     anti_bounce_material(scene.material_of_triangle(&triangle))
                 } else {
@@ -60,7 +55,7 @@ fn handle_ray<'a, R: Rng>(
 
                 if material.metallic > EPS {
                     if let Some(color) =
-                        handle_ray(scene, rng, p, r, EPS, max_bounces - 1, path_length, todo_cache)
+                        handle_ray(scene, rng, p, r, EPS, max_bounces - 1, todo_cache)
                     {
                         result_color += material.color * color * material.metallic;
                     }
@@ -103,11 +98,7 @@ fn handle_ray<'a, R: Rng>(
                                 continue;
                             }
 
-                            let path_length = path_length + light_dist;
-                            let attenuation = path_length * path_length; /*point_light.a * path_length * path_length
-                                                                         + point_light.b * path_length
-                                                                         + point_light.c;*/
-
+                            let attenuation = 1.0 + light_dist * light_dist; //1f64.max(light_dist * light_dist);
                             result_color += (material.color * point_light.color)
                                 * (cos_n_light_ray * diffuse
                                     / attenuation
@@ -118,12 +109,7 @@ fn handle_ray<'a, R: Rng>(
 
                 Some(result_color)
             }
-            Geometry::PointLight(point_light) => {
-                let attenuation = path_length * path_length; /*point_light.a * path_length * path_length
-                                                             + point_light.b * path_length
-                                                             + point_light.c;*/
-                Some(point_light.color / attenuation)
-            }
+            Geometry::PointLight(point_light) => Some(point_light.color),
         }
     } else {
         None
@@ -161,7 +147,6 @@ fn rgss(camera: &Camera, x: f64, y: f64, width: f64, height: f64) -> Vec<Vec3> {
 }
 
 struct RayShootResult {
-    lambda: f64,
     geometry: Geometry,
     hit_pos: Vec3,
     barycentric_coords: Vec3,
@@ -342,7 +327,6 @@ fn shoot_ray<'a>(
 
                         if lambda < max_dist {
                             result = Some(RayShootResult {
-                                lambda,
                                 geometry: Geometry::Triangle(*triangle),
                                 barycentric_coords: Vec3([alpha, beta, gamma]),
                                 hit_pos: intersection,
@@ -373,7 +357,6 @@ fn shoot_ray<'a>(
                         let lambda = lambda1.min(lambda2);
                         if lambda < max_dist {
                             result = Some(RayShootResult {
-                                lambda,
                                 geometry: Geometry::PointLight(*pl),
                                 barycentric_coords: Vec3([NAN, NAN, NAN]),
                                 hit_pos: ray_origin + lambda * ray,
