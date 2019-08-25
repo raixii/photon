@@ -44,17 +44,15 @@ fn handle_ray<'a, R: Rng>(
                 };
                 let mut result_color = Vec3([0.0; 3]);
 
+                let metallic = material.metallic;
                 let mut specular = material.specular;
-                let mut metallic = material.metallic;
                 if specular > EPS || metallic > EPS {
                     if let Some(color) =
                         handle_ray(scene, rng, p, r, EPS, max_bounces - 1, todo_cache)
                     {
                         let cos_n_ray = n.dot(r);
-                        assert!(cos_n_ray > -EPS);
-                        specular = specular + (1.0 - specular) * (1.0 - cos_n_ray).powi(5);
-                        assert!(specular < 1f64 + EPS);
-                        metallic = metallic.min(1f64 - specular);
+                        specular = (specular + (1.0 - specular) * (1.0 - cos_n_ray).powi(5))
+                            * (1.0 - metallic);
                         result_color += color * (Vec3([specular; 3]) + material.color * metallic);
                     }
                 }
