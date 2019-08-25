@@ -44,20 +44,20 @@ fn handle_ray<'a, R: Rng>(
                 };
                 let mut result_color = Vec3([0.0; 3]);
 
-                let metallic = material.metallic;
                 let mut specular = material.specular;
-                if specular > EPS || metallic > EPS {
+                if specular > EPS || material.metallic > EPS {
                     if let Some(color) =
                         handle_ray(scene, rng, p, r, EPS, max_bounces - 1, todo_cache)
                     {
                         let cos_n_ray = n.dot(r);
                         specular = (specular + (1.0 - specular) * (1.0 - cos_n_ray).powi(5))
-                            * (1.0 - metallic);
-                        result_color += color * (Vec3([specular; 3]) + material.color * metallic);
+                            * (1.0 - material.metallic);
+                        result_color +=
+                            color * (Vec3([specular; 3]) + material.color * material.metallic);
                     }
                 }
 
-                let diffuse = 1.0 - metallic - specular;
+                let diffuse = 1.0 - material.metallic - specular;
                 if diffuse > EPS {
                     for point_light in &scene.point_lights {
                         let (light_ray, light_dist) = (point_light.position - p).normalize_len();
