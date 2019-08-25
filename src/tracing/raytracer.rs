@@ -320,7 +320,7 @@ fn shoot_ray<'a>(
                                 barycentric_coords: Vec3([alpha, beta, gamma]),
                                 hit_pos: intersection,
                             };
-                            if sr.calculate_normal().dot(-ray.normalize()) > EPS {
+                            if sr.calculate_normal().dot(ray.normalize()) < 0.0 {
                                 result = Some(sr);
                                 max_dist = lambda;
                             }
