@@ -200,7 +200,6 @@ impl<'a> Import for Blender<'a> {
             camera: scene_camera.ok_or("Scene does not have a camera.")?,
             triangles: scene_triangles,
             point_lights: scene_lights,
-            triangles_bvh: None,
             materials: scene_materials,
         })
     }

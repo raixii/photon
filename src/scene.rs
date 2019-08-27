@@ -1,4 +1,3 @@
-use crate::bvh::Bvh;
 use crate::math::{HasAABB, Plane, Vec3};
 
 #[derive(Debug)]
@@ -6,7 +5,6 @@ pub struct Scene {
     pub camera: Camera,
     pub triangles: Vec<Triangle>,
     pub point_lights: Vec<PointLight>,
-    pub triangles_bvh: Option<Bvh<Geometry>>,
     pub materials: Vec<Material>,
 }
 
