@@ -10,8 +10,9 @@ pub struct Image {
 
 impl Image {
     pub fn from_path(path: &str) -> Result<Image, String> {
-        let image =
-            image::open(path).map_err(|e| format!("Error while reading image {}: {}", path, e))?;
+        let image = image::open(path)
+            .map_err(|e| format!("Error while reading image {}: {}", path, e))?
+            .flipv();
 
         let (w, h) = image.dimensions();
         let w = w as usize;

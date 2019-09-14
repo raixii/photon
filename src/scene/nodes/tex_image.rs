@@ -16,31 +16,31 @@ impl graph::Node for Node {
         let image = &ctx.scene().images[self.image];
         let tex_coord = ctx.tex_coord();
 
-        // Bilinear interpolation
+        // Bilinear interpolation between pixel centers
         let ideal_x = tex_coord.x() * image.w() as f64;
         let ideal_y = tex_coord.y() * image.h() as f64;
 
         let p1 = image.get(
-            real_mod(ideal_x.trunc() as isize, image.w() as isize),
-            real_mod(ideal_y.trunc() as isize, image.h() as isize),
+            real_mod(floor05(ideal_x).floor() as isize, image.w() as isize),
+            real_mod(floor05(ideal_y).floor() as isize, image.h() as isize),
         );
         let p2 = image.get(
-            real_mod(ideal_x.trunc() as isize + 1, image.w() as isize),
-            real_mod(ideal_y.trunc() as isize, image.h() as isize),
+            real_mod(floor05(ideal_x).floor() as isize + 1, image.w() as isize),
+            real_mod(floor05(ideal_y).floor() as isize, image.h() as isize),
         );
-        let p12 = p2 * (ideal_x - ideal_x.trunc()) + p1 * (ideal_x.trunc() + 1.0 - ideal_x);
+        let p12 = p2 * (ideal_x - floor05(ideal_x)) + p1 * (floor05(ideal_x) + 1.0 - ideal_x);
 
         let p3 = image.get(
-            real_mod(ideal_x.trunc() as isize, image.w() as isize),
-            real_mod(ideal_y.trunc() as isize + 1, image.h() as isize),
+            real_mod(floor05(ideal_x).floor() as isize, image.w() as isize),
+            real_mod(floor05(ideal_y).floor() as isize + 1, image.h() as isize),
         );
         let p4 = image.get(
-            real_mod(ideal_x.trunc() as isize + 1, image.w() as isize),
-            real_mod(ideal_y.trunc() as isize + 1, image.h() as isize),
+            real_mod(floor05(ideal_x).floor() as isize + 1, image.w() as isize),
+            real_mod(floor05(ideal_y).floor() as isize + 1, image.h() as isize),
         );
-        let p34 = p4 * (ideal_x - ideal_x.trunc()) + p3 * (ideal_x.trunc() + 1.0 - ideal_x);
+        let p34 = p4 * (ideal_x - floor05(ideal_x)) + p3 * (floor05(ideal_x) + 1.0 - ideal_x);
 
-        let p1234 = p34 * (ideal_y - ideal_y.trunc()) + p12 * (ideal_y.trunc() + 1.0 - ideal_y);
+        let p1234 = p34 * (ideal_y - floor05(ideal_y)) + p12 * (floor05(ideal_y) + 1.0 - ideal_y);
 
         return vec![p1234.to_output(), p1234.w().to_output()];
     }
@@ -52,4 +52,8 @@ fn real_mod(num: isize, mod_by: isize) -> usize {
     } else {
         (-(-num % mod_by) + mod_by) as usize
     }
+}
+
+fn floor05(num: f64) -> f64 {
+    (num - 0.5).trunc() + 0.5
 }
