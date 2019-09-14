@@ -1,3 +1,4 @@
+use super::super::scene::Scene;
 use crate::math::{Vec2, Vec3, Vec4};
 use std::fmt::Debug;
 
@@ -10,11 +11,9 @@ pub struct Bsdf {
 
 #[derive(Debug, Clone, Copy)]
 pub enum Output {
-    Vec3(Vec3),
     Vec4(Vec4),
     F64(f64),
     Bsdf(Bsdf),
-    Null,
 }
 
 pub trait LinkType: Debug + Clone + Copy {
@@ -70,6 +69,7 @@ pub enum Link<T: LinkType> {
 pub struct EvaluationContext<'a> {
     tex_coord: Vec2,
     graph: &'a Graph,
+    scene: &'a Scene,
     node_results: Vec<Option<Vec<Output>>>,
 }
 
@@ -84,6 +84,14 @@ impl<'a> EvaluationContext<'a> {
                 LinkType::from_output(self.node_results[idx].as_ref().unwrap()[socket])
             }
         }
+    }
+
+    pub fn tex_coord(&self) -> Vec2 {
+        self.tex_coord
+    }
+
+    pub fn scene(&self) -> &Scene {
+        self.scene
     }
 }
 
@@ -106,7 +114,12 @@ impl Graph {
         self.nodes.len() - 1
     }
 
-    pub fn new_context(&self, tex_coord: Vec2) -> EvaluationContext {
-        EvaluationContext { tex_coord, graph: &self, node_results: vec![None; self.nodes.len()] }
+    pub fn new_context<'a>(&'a self, scene: &'a Scene, tex_coord: Vec2) -> EvaluationContext<'a> {
+        EvaluationContext {
+            tex_coord,
+            scene,
+            graph: &self,
+            node_results: vec![None; self.nodes.len()],
+        }
     }
 }

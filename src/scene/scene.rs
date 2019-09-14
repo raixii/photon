@@ -1,3 +1,4 @@
+use super::image::Image;
 use super::nodes::{output_material, Bsdf, Graph, Link};
 use crate::math::{HasAABB, Plane, Vec2, Vec3};
 
@@ -7,12 +8,13 @@ pub struct Scene {
     pub triangles: Vec<Triangle>,
     pub point_lights: Vec<PointLight>,
     pub materials: Vec<(usize, Graph)>,
+    pub images: Vec<Image>,
 }
 
 impl Scene {
     pub fn evaluate_material(&self, triangle: &Triangle, tex_coord: Vec2) -> Bsdf {
         let (output_index, material) = &self.materials[triangle.material];
-        let mut ctx = material.new_context(tex_coord);
+        let mut ctx = material.new_context(self, tex_coord);
         ctx.evaluate_link(Link::Node(*output_index, output_material::outputs::SURFACE))
     }
 }
@@ -113,4 +115,5 @@ impl HasAABB for Geometry {
 pub struct Vertex {
     pub position: Vec3,
     pub normal: Vec3,
+    pub tex_coord: Vec2,
 }

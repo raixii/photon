@@ -6,6 +6,7 @@ extern crate clap;
 use import::{Blender, Import};
 use std::fmt::{Debug, Formatter};
 use std::io::Read;
+use std::path::Path;
 use std::process::{Command, Stdio};
 use std::str::FromStr;
 use std::sync::{atomic, Arc};
@@ -84,9 +85,18 @@ fn main() -> Result<(), ErrorMessage> {
                     .map_err(|e| format!("Encoding error: {}", e))?;
                 let json_text = &json_text[json_text.find('{').ok_or("Missing first { in JSON.")?
                     ..=json_text.rfind('}').ok_or("Missing last } in JSON.")?];
-                Blender::new(&json_text, window_w, window_h)
-                    .import()
-                    .map_err(|e| format!("Error during Blender import: {}", e))
+                Blender::new(
+                    Path::new(path)
+                        .parent()
+                        .ok_or("Cannot get parent directory")?
+                        .to_str()
+                        .ok_or("Path contains invalid characters")?,
+                    &json_text,
+                    window_w,
+                    window_h,
+                )
+                .import()
+                .map_err(|e| format!("Error during Blender import: {}", e))
             }
         } else if path.ends_with(".blend.json") {
             let mut file_text = String::new();
@@ -95,9 +105,18 @@ fn main() -> Result<(), ErrorMessage> {
             infile
                 .read_to_string(&mut file_text)
                 .map_err(|e| format!("File {} cannot be read: {}", path, e))?;
-            Blender::new(&file_text, window_w, window_h)
-                .import()
-                .map_err(|e| format!("Error during Blender JSON import: {}", e))
+            Blender::new(
+                Path::new(path)
+                    .parent()
+                    .ok_or("Cannot get parent directory")?
+                    .to_str()
+                    .ok_or("Path contains invalid characters")?,
+                &file_text,
+                window_w,
+                window_h,
+            )
+            .import()
+            .map_err(|e| format!("Error during Blender JSON import: {}", e))
         } else {
             Err("Unknown input format.".to_owned())
         }?;

@@ -1,5 +1,5 @@
 use super::raytracer::{RayShootResult, RayTracer};
-use crate::math::{Mat4, Vec2, Vec3, EPS};
+use crate::math::{Mat4, Vec3, EPS};
 use crate::scene::{Bsdf, Camera, Geometry, Scene};
 use rand::Rng;
 use std::f64::consts::PI;
@@ -29,13 +29,13 @@ fn handle_ray<'a, R: Rng>(
 ) -> Option<Vec3> {
     assert!(max_bounces != std::usize::MAX);
 
-    if let Some(RayShootResult { geometry, normal: n, position: p, .. }) =
+    if let Some(RayShootResult { geometry, normal: n, position: p, tex_coord, .. }) =
         ray_tracer.trace_ray(origin, ray, lambda_min, INFINITY)
     {
         match geometry {
             Geometry::Triangle(triangle) => {
                 let r = reflect_ray(ray.normalize(), n);
-                let bsdf = scene.evaluate_material(&triangle, Vec2([0.0, 0.0]));
+                let bsdf = scene.evaluate_material(&triangle, tex_coord);
                 let bsdf = if max_bounces == 0 { anti_bounce_material(&bsdf) } else { bsdf };
                 let mut result_color = Vec3([0.0; 3]);
 

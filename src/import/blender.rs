@@ -1,22 +1,31 @@
 use super::{Import, ImportError};
-use crate::math::{AlmostEq, Mat4, Vec3, Vec4};
+use crate::math::{AlmostEq, Mat4, Vec2, Vec3, Vec4};
 use crate::scene::{
-    bsdf_principled, output_material, tex_image, Bsdf, Camera, Graph, Link, LinkType, PointLight,
-    Scene, Triangle, Vertex,
+    bsdf_principled, output_material, tex_image, Bsdf, Camera, Graph, Image, Link, LinkType,
+    PointLight, Scene, Triangle, Vertex,
 };
 use serde::Deserialize;
 use std::collections::BTreeMap;
 use std::fmt::Debug;
 
 pub struct Blender<'a> {
+    pwd: &'a str,
     string: &'a str,
     w: usize,
     h: usize,
 }
 
 impl<'a> Blender<'a> {
-    pub fn new(string: &str, w: usize, h: usize) -> Blender {
-        Blender { string, w, h }
+    pub fn new(pwd: &'a str, string: &'a str, w: usize, h: usize) -> Blender<'a> {
+        Blender { pwd, string, w, h }
+    }
+
+    fn resolve_path(&self, path: &'a str) -> String {
+        if path.starts_with("//") {
+            format!("{}/{}", self.pwd, &path[2..])
+        } else {
+            path.to_owned()
+        }
     }
 }
 
@@ -202,6 +211,7 @@ impl<'a> Import for Blender<'a> {
         let mut scene_lights = vec![];
         let mut scene_triangles = vec![];
         let mut scene_materials = vec![];
+        let mut scene_images = vec![];
 
         for (_, object) in json.objects {
             match object.object {
@@ -251,9 +261,21 @@ impl<'a> Import for Blender<'a> {
                     let matrix = to_mat4(mesh.matrix);
                     let nmatrix = matrix.inv().transpose();
                     let mut triangle = (
-                        Vertex { position: Vec3([0.0; 3]), normal: Vec3([0.0; 3]) },
-                        Vertex { position: Vec3([0.0; 3]), normal: Vec3([0.0; 3]) },
-                        Vertex { position: Vec3([0.0; 3]), normal: Vec3([0.0; 3]) },
+                        Vertex {
+                            position: Vec3([0.0; 3]),
+                            normal: Vec3([0.0; 3]),
+                            tex_coord: Vec2([0.0; 2]),
+                        },
+                        Vertex {
+                            position: Vec3([0.0; 3]),
+                            normal: Vec3([0.0; 3]),
+                            tex_coord: Vec2([0.0; 2]),
+                        },
+                        Vertex {
+                            position: Vec3([0.0; 3]),
+                            normal: Vec3([0.0; 3]),
+                            tex_coord: Vec2([0.0; 2]),
+                        },
                     );
                     let mut i = 0;
                     for t in mesh.triangles {
@@ -265,6 +287,7 @@ impl<'a> Import for Blender<'a> {
                         };
                         vertex.position = (matrix * to_vec3(t.p).xyz1()).xyz();
                         vertex.normal = (nmatrix * to_vec3(t.n).xyz0()).xyz();
+                        vertex.tex_coord = to_vec2(t.t);
                         if i == 2 {
                             scene_triangles.push(Triangle::new(
                                 triangle.0,
@@ -313,7 +336,39 @@ impl<'a> Import for Blender<'a> {
                                 specular: node.in_specular.to_link(&nodes, |v| *v)?,
                                 metallic: node.in_metallic.to_link(&nodes, |v| *v)?,
                             }),
-                            BlenderNode::TexImage(node) => unimplemented!(),
+                            BlenderNode::TexImage(node) => {
+                                if node.interpolation != "Linear" {
+                                    return Err(ImportError::from(
+                                        "Textures only support linear interpolation",
+                                    ));
+                                }
+                                if node.projection != "FLAT" {
+                                    return Err(ImportError::from(
+                                        "Textures only support flat projection",
+                                    ));
+                                }
+                                if node.extension != "REPEAT" {
+                                    return Err(ImportError::from(
+                                        "Textures only support repeat extension",
+                                    ));
+                                }
+                                if node.source != "FILE" {
+                                    return Err(ImportError::from(
+                                        "Textures may only come from files",
+                                    ));
+                                }
+                                if node.colorspace != "sRGB" {
+                                    return Err(ImportError::from(
+                                        "Textures only support sRGB color-space",
+                                    ));
+                                }
+
+                                let image_path = self.resolve_path(&node.filepath);
+                                let image_index = scene_images.len();
+                                scene_images.push(Image::from_path(&image_path)?);
+
+                                Box::new(tex_image::Node { image: image_index })
+                            }
                         });
                     }
 
@@ -327,6 +382,7 @@ impl<'a> Import for Blender<'a> {
             triangles: scene_triangles,
             point_lights: scene_lights,
             materials: scene_materials,
+            images: scene_images,
         })
     }
 }
@@ -338,6 +394,10 @@ fn to_mat4(mat: BlenderMat4) -> Mat4 {
         [(mat.0).2, (mat.1).2, (mat.2).2, (mat.3).2],
         [(mat.0).3, (mat.1).3, (mat.2).3, (mat.3).3],
     ])
+}
+
+fn to_vec2(v: (f64, f64)) -> Vec2 {
+    Vec2([v.0, v.1])
 }
 
 fn to_vec3(v: (f64, f64, f64)) -> Vec3 {

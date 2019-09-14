@@ -22,6 +22,24 @@ impl Vec2 {
     }
 }
 
+impl Mul<f64> for Vec2 {
+    type Output = Vec2;
+
+    #[inline(always)]
+    fn mul(self, rhs: f64) -> Vec2 {
+        Vec2(vecmath::vec2_mul(self.0, [rhs, rhs]))
+    }
+}
+
+impl Add<Vec2> for Vec2 {
+    type Output = Vec2;
+
+    #[inline(always)]
+    fn add(self, rhs: Vec2) -> Vec2 {
+        Vec2(vecmath::vec2_add(self.0, rhs.0))
+    }
+}
+
 #[derive(Copy, Clone, PartialEq)]
 pub struct Vec3(pub vecmath::Vector3<f64>);
 
@@ -190,11 +208,45 @@ impl Vec4 {
     pub fn xyz(self) -> Vec3 {
         Vec3([self.0[0], self.0[1], self.0[2]])
     }
+
+    pub fn x(self) -> f64 {
+        self.0[0]
+    }
+
+    pub fn y(self) -> f64 {
+        self.0[1]
+    }
+
+    pub fn z(self) -> f64 {
+        self.0[2]
+    }
+
+    pub fn w(self) -> f64 {
+        self.0[3]
+    }
 }
 
 impl Debug for Vec4 {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         write!(f, "[{:5.2}, {:5.2}, {:5.2}, {:5.2}]", self.0[0], self.0[1], self.0[2], self.0[3])
+    }
+}
+
+impl Mul<f64> for Vec4 {
+    type Output = Vec4;
+
+    #[inline(always)]
+    fn mul(self, rhs: f64) -> Vec4 {
+        Vec4(vecmath::vec4_mul(self.0, [rhs, rhs, rhs, rhs]))
+    }
+}
+
+impl Add<Vec4> for Vec4 {
+    type Output = Vec4;
+
+    #[inline(always)]
+    fn add(self, rhs: Vec4) -> Vec4 {
+        Vec4(vecmath::vec4_add(self.0, rhs.0))
     }
 }
 

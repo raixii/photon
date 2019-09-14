@@ -1,5 +1,5 @@
 use super::bvh::{Bvh, BvhChild, BvhNode};
-use crate::math::{AlmostEq, Plane, Vec3};
+use crate::math::{AlmostEq, Plane, Vec2, Vec3};
 use crate::scene::Geometry;
 use std::arch::x86_64::*;
 use std::f64::{INFINITY, NEG_INFINITY};
@@ -9,6 +9,7 @@ pub struct RayShootResult {
     pub position: Vec3,
     pub normal: Vec3,
     pub lambda: f64,
+    pub tex_coord: Vec2,
 }
 
 pub struct RayTracer<'a> {
@@ -189,11 +190,16 @@ impl<'a> RayTracer<'a> {
                             }
                             let normal = normal.normalize();
 
+                            let tex_coord = triangle.a().tex_coord * alpha
+                                + triangle.b().tex_coord * beta
+                                + triangle.c().tex_coord * gamma;
+
                             result = Some(RayShootResult {
                                 geometry: Geometry::Triangle(*triangle),
                                 position: intersection,
                                 normal,
                                 lambda,
+                                tex_coord,
                             });
                             max_dist = lambda;
                         }
@@ -226,6 +232,7 @@ impl<'a> RayTracer<'a> {
                                     position,
                                     normal: (position - pl.position).normalize(),
                                     lambda,
+                                    tex_coord: Vec2([0.0, 0.0]),
                                 });
                                 max_dist = lambda;
                             }

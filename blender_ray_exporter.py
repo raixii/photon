@@ -65,11 +65,12 @@ def main():
             uv_layer = mesh.uv_layers.active.data
             triangles = []
             for t in mesh.loop_triangles:
-                for v in t.vertices:
+                for loop_index in t.loops:
+                    vertex_index = mesh.loops[loop_index].vertex_index
                     triangles.append({
-                        "p": convert_vector(mesh.vertices[v].co),
-                        "n": convert_vector(mesh.vertices[v].normal if t.use_smooth else t.normal),
-                        "t": convert_vector(uv_layer[v].uv)
+                        "p": convert_vector(mesh.vertices[vertex_index].co),
+                        "n": convert_vector(mesh.vertices[vertex_index].normal if t.use_smooth else t.normal),
+                        "t": convert_vector(uv_layer[loop_index].uv)
                     })
             object.to_mesh_clear()
             out_object["triangles"] = triangles
