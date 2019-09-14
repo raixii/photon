@@ -194,6 +194,7 @@ impl DivAssign<f64> for Vec3 {
 
 impl Div<f64> for Vec3 {
     type Output = Vec3;
+
     #[inline(always)]
     fn div(self, rhs: f64) -> Vec3 {
         Vec3([self.0[0] / rhs, self.0[1] / rhs, self.0[2] / rhs])
@@ -209,20 +210,29 @@ impl Vec4 {
         Vec3([self.0[0], self.0[1], self.0[2]])
     }
 
+    #[inline(always)]
     pub fn x(self) -> f64 {
         self.0[0]
     }
 
+    #[inline(always)]
     pub fn y(self) -> f64 {
         self.0[1]
     }
 
+    #[inline(always)]
     pub fn z(self) -> f64 {
         self.0[2]
     }
 
+    #[inline(always)]
     pub fn w(self) -> f64 {
         self.0[3]
+    }
+
+    #[inline(always)]
+    pub fn srgb_to_linear(self) -> Vec4 {
+        Vec4([self.x().powf(2.2), self.y().powf(2.2), self.z().powf(2.2), self.w()])
     }
 }
 
@@ -247,6 +257,15 @@ impl Add<Vec4> for Vec4 {
     #[inline(always)]
     fn add(self, rhs: Vec4) -> Vec4 {
         Vec4(vecmath::vec4_add(self.0, rhs.0))
+    }
+}
+
+impl Div<f64> for Vec4 {
+    type Output = Vec4;
+
+    #[inline(always)]
+    fn div(self, rhs: f64) -> Vec4 {
+        Vec4([self.0[0] / rhs, self.0[1] / rhs, self.0[2] / rhs, self.0[3] / rhs])
     }
 }
 

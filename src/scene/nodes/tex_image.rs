@@ -1,6 +1,5 @@
 use super::graph;
 use super::graph::{EvaluationContext, LinkType, Output};
-use crate::math::Vec4;
 
 pub mod outputs {
     pub const COLOR: usize = 0;
@@ -41,12 +40,9 @@ impl graph::Node for Node {
         );
         let p34 = p4 * (ideal_x - ideal_x.trunc()) + p3 * (ideal_x.trunc() + 1.0 - ideal_x);
 
-        let p1234 = p34 * (ideal_y + ideal_y.trunc()) + p12 * (ideal_y.trunc() + 1.0 - ideal_y);
+        let p1234 = p34 * (ideal_y - ideal_y.trunc()) + p12 * (ideal_y.trunc() + 1.0 - ideal_y);
 
-        // Convert sRGB to linear colorspace
-        let c = Vec4([p1234.x().powf(2.2), p1234.y().powf(2.2), p1234.z().powf(2.2), p1234.w()]);
-
-        return vec![c.to_output(), c.w().to_output()];
+        return vec![p1234.to_output(), p1234.w().to_output()];
     }
 }
 
