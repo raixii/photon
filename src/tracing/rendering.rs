@@ -1,6 +1,6 @@
 use super::raytracer::{RayShootResult, RayTracer};
-use crate::math::{Mat4, Vec3, EPS};
-use crate::scene::{Camera, Geometry, Material, Scene};
+use crate::math::{Mat4, Vec2, Vec3, EPS};
+use crate::scene::{Bsdf, Camera, Geometry, Scene};
 use rand::Rng;
 use std::f64::consts::PI;
 use std::f64::INFINITY;
@@ -35,27 +35,23 @@ fn handle_ray<'a, R: Rng>(
         match geometry {
             Geometry::Triangle(triangle) => {
                 let r = reflect_ray(ray.normalize(), n);
-                let material = if max_bounces == 0 {
-                    anti_bounce_material(scene.material_of_triangle(&triangle))
-                } else {
-                    *scene.material_of_triangle(&triangle)
-                };
+                let bsdf = scene.evaluate_material(&triangle, Vec2([0.0, 0.0]));
+                let bsdf = if max_bounces == 0 { anti_bounce_material(&bsdf) } else { bsdf };
                 let mut result_color = Vec3([0.0; 3]);
 
-                let mut specular = material.specular;
-                if specular > EPS || material.metallic > EPS {
+                let mut specular = bsdf.specular;
+                if specular > EPS || bsdf.metallic > EPS {
                     if let Some(color) =
                         handle_ray(scene, rng, p, r, EPS, max_bounces - 1, ray_tracer)
                     {
                         let cos_n_ray = n.dot(r);
                         specular = (specular + (1.0 - specular) * (1.0 - cos_n_ray).powi(5))
-                            * (1.0 - material.metallic);
-                        result_color +=
-                            color * (Vec3([specular; 3]) + material.color * material.metallic);
+                            * (1.0 - bsdf.metallic);
+                        result_color += color * (Vec3([specular; 3]) + bsdf.color * bsdf.metallic);
                     }
                 }
 
-                let diffuse = 1.0 - material.metallic - specular;
+                let diffuse = 1.0 - bsdf.metallic - specular;
                 if diffuse > EPS {
                     for point_light in &scene.point_lights {
                         let (light_ray, light_dist) = (point_light.position - p).normalize_len();
@@ -93,7 +89,7 @@ fn handle_ray<'a, R: Rng>(
                             }
 
                             let attenuation = 1.0 + light_dist * light_dist;
-                            result_color += (material.color * point_light.color)
+                            result_color += (bsdf.color * point_light.color)
                                 * (cos_n_light_ray * diffuse
                                     / attenuation
                                     / f64::from(sample_size));
@@ -114,8 +110,8 @@ fn reflect_ray(ray: Vec3, n: Vec3) -> Vec3 {
     ray - 2.0 * ray.dot(n) * n
 }
 
-fn anti_bounce_material(material: &Material) -> Material {
-    Material { color: material.color, specular: 0.0, metallic: 0.0 }
+fn anti_bounce_material(bsdf: &Bsdf) -> Bsdf {
+    Bsdf { color: bsdf.color, specular: 0.0, metallic: 0.0 }
 }
 
 fn calc_ray(camera: &Camera, x: f64, y: f64, width: f64, height: f64) -> Vec3 {

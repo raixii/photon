@@ -2,6 +2,27 @@ use std::fmt::{Debug, Formatter};
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, Neg, Sub};
 
 #[derive(Copy, Clone, PartialEq)]
+pub struct Vec2(pub vecmath::Vector2<f64>);
+
+impl Debug for Vec2 {
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+        write!(f, "[{:5.2}, {:5.2}]", self.0[0], self.0[1])
+    }
+}
+
+impl Vec2 {
+    #[inline(always)]
+    pub fn x(self) -> f64 {
+        self.0[0]
+    }
+
+    #[inline(always)]
+    pub fn y(self) -> f64 {
+        self.0[1]
+    }
+}
+
+#[derive(Copy, Clone, PartialEq)]
 pub struct Vec3(pub vecmath::Vector3<f64>);
 
 impl Debug for Vec3 {

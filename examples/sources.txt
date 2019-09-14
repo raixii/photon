@@ -1,0 +1,7 @@
+https://www.oxpal.com/uv-checker-texture.html
+	- checker-map_tho.png
+	- checker-map_vertical_tho.png
+	- checker-map_horizontal_tho.png
+
+https://en.wikibooks.org/wiki/Blender_3D:_Noob_to_Pro/UV_Map_Basics#/media/File:BlueMarble-2001-2002.jpg
+	- BlueMarble-2001-2002.jpg

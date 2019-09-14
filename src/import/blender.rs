@@ -1,8 +1,12 @@
 use super::{Import, ImportError};
 use crate::math::{AlmostEq, Mat4, Vec3, Vec4};
-use crate::scene::{Camera, Material, PointLight, Scene, Triangle, Vertex};
+use crate::scene::{
+    bsdf_principled, output_material, tex_image, Bsdf, Camera, Graph, Link, LinkType, PointLight,
+    Scene, Triangle, Vertex,
+};
 use serde::Deserialize;
 use std::collections::BTreeMap;
+use std::fmt::Debug;
 
 pub struct Blender<'a> {
     string: &'a str,
@@ -33,7 +37,7 @@ struct BlenderObject {
 #[serde(tag = "type")]
 enum BlenderObjectData {
     #[serde(rename = "MESH")]
-    Mesh(Box<BlenderMesh>),
+    Mesh(BlenderMesh),
     #[serde(rename = "LIGHT")]
     Light(BlenderLight),
     #[serde(rename = "CAMERA")]
@@ -76,28 +80,115 @@ struct BlenderTriangle {
 #[derive(Deserialize, Debug)]
 struct BlenderMaterial {
     name: String,
-    base_color: (f64, f64, f64, f64),
-    subsurface: f64,
-    subsurface_radius: (f64, f64, f64),
-    subsurface_color: (f64, f64, f64, f64),
-    metallic: f64,
-    specular: f64,
-    specular_tint: f64,
-    roughness: f64,
-    anisotropic: f64,
-    anisotropic_rotation: f64,
-    sheen: f64,
-    sheen_tint: f64,
-    clearcoat: f64,
-    clearcoat_roughness: f64,
-    ior: f64,
-    transmission: f64,
-    transmission_roughness: f64,
-    emission: (f64, f64, f64, f64),
-    alpha: f64,
-    normal: (f64, f64, f64),
-    clearcoat_normal: (f64, f64, f64),
-    tangent: (f64, f64, f64),
+    nodes: BTreeMap<String, BlenderNode>,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(tag = "type")]
+enum BlenderNode {
+    #[serde(rename = "OUTPUT_MATERIAL")]
+    OutputMaterial(BlenderOutputMaterial),
+    #[serde(rename = "BSDF_PRINCIPLED")]
+    BsdfPrincipled(BlenderBsdfPrincipled),
+    #[serde(rename = "TEX_IMAGE")]
+    TexImage(BlenderTexImage),
+}
+
+impl BlenderNode {
+    pub fn map_output(&self, socket: &str) -> Result<usize, ImportError> {
+        use BlenderNode::*;
+        match (self, socket) {
+            (BsdfPrincipled(_), "bsdf") => Ok(bsdf_principled::outputs::BSDF),
+            (TexImage(_), "color") => Ok(tex_image::outputs::COLOR),
+            (TexImage(_), "alpha") => Ok(tex_image::outputs::ALPHA),
+            _ => Err(ImportError::from(format!("Unknown output socket {}", socket))),
+        }
+    }
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(tag = "type")]
+enum BlenderSocket<T: Debug> {
+    #[serde(rename = "VALUE")]
+    Value(BlenderValue<T>),
+    #[serde(rename = "LINK")]
+    Link(BlenderLink),
+}
+
+impl<T: Debug + Clone> BlenderSocket<T> {
+    fn to_link<To: LinkType, Mapper: (FnOnce(&T) -> To)>(
+        &self,
+        nodes: &BTreeMap<&str, (usize, &BlenderNode)>,
+        mapper: Mapper,
+    ) -> Result<Link<To>, ImportError> {
+        match self {
+            BlenderSocket::Value(v) => Ok(Link::Constant(mapper(&v.value))),
+            BlenderSocket::Link(BlenderLink { from_node, from_socket }) => {
+                let (index, blender_node) = nodes
+                    .get(from_node.as_str())
+                    .ok_or_else(|| format!("Node not found {}", from_node))?;
+                Ok(Link::Node(*index, blender_node.map_output(from_socket)?))
+            }
+        }
+    }
+}
+
+#[derive(Deserialize, Debug)]
+struct BlenderLink {
+    from_node: String,
+    from_socket: String,
+}
+
+#[derive(Deserialize, Debug)]
+struct BlenderValue<T: Debug> {
+    value: T,
+}
+
+#[derive(Deserialize, Debug)]
+struct BlenderOutputMaterial {
+    in_surface: BlenderSocket<Option<()>>,
+    in_volume: BlenderSocket<Option<()>>,
+    in_displacement: BlenderSocket<(f64, f64, f64)>,
+}
+
+#[derive(Deserialize, Debug)]
+struct BlenderBsdfPrincipled {
+    in_base_color: BlenderSocket<(f64, f64, f64, f64)>,
+    in_subsurface: BlenderSocket<f64>,
+    in_subsurface_radius: BlenderSocket<(f64, f64, f64)>,
+    in_subsurface_color: BlenderSocket<(f64, f64, f64, f64)>,
+    in_metallic: BlenderSocket<f64>,
+    in_specular: BlenderSocket<f64>,
+    in_specular_tint: BlenderSocket<f64>,
+    in_roughness: BlenderSocket<f64>,
+    in_anisotropic: BlenderSocket<f64>,
+    in_anisotropic_rotation: BlenderSocket<f64>,
+    in_sheen: BlenderSocket<f64>,
+    in_sheen_tint: BlenderSocket<f64>,
+    in_clearcoat: BlenderSocket<f64>,
+    in_clearcoat_roughness: BlenderSocket<f64>,
+    in_ior: BlenderSocket<f64>,
+    in_transmission: BlenderSocket<f64>,
+    in_transmission_roughness: BlenderSocket<f64>,
+    in_emission: BlenderSocket<(f64, f64, f64, f64)>,
+    in_alpha: BlenderSocket<f64>,
+    in_normal: BlenderSocket<(f64, f64, f64)>,
+    in_clearcoat_normal: BlenderSocket<(f64, f64, f64)>,
+    in_tangent: BlenderSocket<(f64, f64, f64)>,
+    out_bsdf: BlenderSocket<Option<()>>,
+}
+
+#[derive(Deserialize, Debug)]
+struct BlenderTexImage {
+    in_vector: BlenderSocket<(f64, f64, f64)>,
+    out_color: BlenderSocket<(f64, f64, f64, f64)>,
+    out_alpha: BlenderSocket<f64>,
+    interpolation: String,
+    projection: String,
+    extension: String,
+    source: String,
+    filepath: String,
+    colorspace: String,
 }
 
 type BlenderMat4 =
@@ -187,11 +278,46 @@ impl<'a> Import for Blender<'a> {
                         }
                     }
 
-                    scene_materials.push(Material {
-                        color: to_vec4(mesh.material.base_color).xyz(),
-                        specular: mesh.material.specular * 0.08,
-                        metallic: mesh.material.metallic,
-                    });
+                    let mut nodes = BTreeMap::<&str, (usize, &BlenderNode)>::new();
+                    let mut output_index = None;
+                    for (i, (node_name, node)) in mesh.material.nodes.iter().enumerate() {
+                        if let BlenderNode::OutputMaterial(_) = node {
+                            if output_index.is_none() {
+                                output_index = Some(i);
+                            } else {
+                                return Err(ImportError::from(format!(
+                                    "Duplicate OUTPUT_MATERIAL in material {}",
+                                    mesh.material.name
+                                )));
+                            }
+                        }
+                        nodes.insert(node_name, (i, node));
+                    }
+                    let mesh_material_name = mesh.material.name.as_str();
+                    let output_index = output_index.ok_or_else(|| {
+                        format!("Missing OUTPUT_MATERIAL in material {}", mesh_material_name)
+                    })?;
+
+                    let mut node_graph = Graph::new();
+                    for node in mesh.material.nodes.values() {
+                        node_graph.add_node(match node {
+                            BlenderNode::OutputMaterial(node) => Box::new(output_material::Node {
+                                surface: node.in_surface.to_link(&nodes, |_| Bsdf {
+                                    color: Vec3([1.0, 1.0, 1.0]),
+                                    specular: 0.0,
+                                    metallic: 0.0,
+                                })?,
+                            }),
+                            BlenderNode::BsdfPrincipled(node) => Box::new(bsdf_principled::Node {
+                                base_color: node.in_base_color.to_link(&nodes, |v| to_vec4(*v))?,
+                                specular: node.in_specular.to_link(&nodes, |v| *v)?,
+                                metallic: node.in_metallic.to_link(&nodes, |v| *v)?,
+                            }),
+                            BlenderNode::TexImage(node) => unimplemented!(),
+                        });
+                    }
+
+                    scene_materials.push((output_index, node_graph));
                 }
             }
         }

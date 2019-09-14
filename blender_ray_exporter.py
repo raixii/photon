@@ -30,6 +30,13 @@ def main():
         args = sys.argv[sys.argv.index("--") + 1:]
     else:
         args = []
+
+    if "--pretty" in args:
+        pretty = True
+        args.remove("--pretty")
+    else:
+        pretty = False
+
     if len(args) >= 1:
         outfile = args[0]
     else:
@@ -71,18 +78,38 @@ def main():
             out_material = dict()
             out_object["material"] = out_material
             out_material["name"] = material.name
-            material_output_node = material.node_tree.nodes['Material Output']
-            surface_node = material_output_node.inputs["Surface"].links[0].from_node
-            out_material["type"] = surface_node.type
-            for (in_name, in_value) in surface_node.inputs.items():
-                if in_value.type == "VALUE":
-                    out_material[rename(in_name)] = in_value.default_value
-                elif in_value.type == "RGBA":
-                    out_material[rename(in_name)] = convert_prop_array(in_value.default_value)
-                elif in_value.type == "VECTOR":
-                    out_material[rename(in_name)] = convert_vector(in_value.default_value)
-                else:
-                    eprint("\tUnknown type in material node", in_value.type)
+            out_material["nodes"] = {}
+            for (node_name, node) in material.node_tree.nodes.items():
+                out_node = {}
+                out_node["name"] = node_name
+                out_node["type"] = node.type
+                for prefix, items in (("in", node.inputs.items()), ("out", node.outputs.items())):
+                    for (name, value) in items:
+                        key = prefix + "_" + rename(name)
+                        if value.type == "VALUE":
+                            out_node[key] = { "type": "VALUE", "value": value.default_value }
+                        elif value.type == "RGBA":
+                            out_node[key] = { "type": "VALUE", "value": convert_prop_array(value.default_value) }
+                        elif value.type == "VECTOR":
+                            out_node[key] = { "type": "VALUE", "value": convert_vector(value.default_value) }
+                        elif value.type == "SHADER":
+                            out_node[key] = { "type": "VALUE", "value": None }
+                        else:
+                            eprint("\tUnknown type", value.type, "of input socket", name)
+                if node.type == "TEX_IMAGE":
+                    out_node["interpolation"] = node.interpolation
+                    out_node["projection"] = node.projection
+                    out_node["extension"] = node.extension
+                    out_node["source"] = node.image.source
+                    out_node["filepath"] = node.image.filepath
+                    out_node["colorspace"] = node.image.colorspace_settings.name
+                out_material["nodes"][out_node["name"]] = out_node
+            for link in material.node_tree.links:
+                out_material["nodes"][link.to_node.name]["in_" + rename(link.to_socket.name)] = {
+                    "type": "LINK",
+                    "from_node": link.from_node.name,
+                    "from_socket": rename(link.from_socket.name),
+                }
         elif object.type == "LIGHT":
             out_object["lamp_type"] = object.data.type
             out_object["color"] = convert_color(object.data.color)
@@ -105,7 +132,7 @@ def main():
         "objects": out_objects,
     }
 
-    json_str = json.dumps(out, check_circular=False)
+    json_str = json.dumps(out, check_circular=False, indent=(2 if pretty else None))
     if outfile == "-":
         print(json_str)
     else:
